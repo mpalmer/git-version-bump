@@ -143,6 +143,7 @@ module GitVersionBump
 		else
 			puts "Tagging version #{v}..."
 			system("git tag -a -m 'Version v#{v}' v#{v}")
+			system("git push >/dev/null 2>&1")
 			system("git push --tags >/dev/null 2>&1")
 		end
 	end
