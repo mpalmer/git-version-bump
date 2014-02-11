@@ -78,11 +78,7 @@ module GitVersionBump
 		if $? == 0
 			# Yes, we're in git.
 			
-			# Are we in a dirty, dirty tree?
-			system("! git diff --no-ext-diff --quiet --exit-code || ! git diff-index --cached --quiet HEAD")
-			
-			if $? == 0
-				# Yes, we're in a dirty tree.
+			if GVB.dirty_tree?
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
@@ -100,7 +96,12 @@ module GitVersionBump
 	end
 	
 	def self.tag_version(v)
-		system("git tag -a -m 'Version v#{v}' v#{v}")
+		if GVB.dirty_tree?
+			puts "You have uncommitted files.  Refusing to tag a dirty tree."
+		else
+			puts "Tagging version #{v}..."
+			system("git tag -a -m 'Version v#{v}' v#{v}")
+		end
 	end
 	
 	def self.caller_gemspec
@@ -122,8 +123,15 @@ module GitVersionBump
 				return spec
 			end
 		end
-		
+
 		nil
+	end
+
+	def self.dirty_tree?
+		# Are we in a dirty, dirty tree?
+		system("! git diff --no-ext-diff --quiet --exit-code || ! git diff-index --cached --quiet HEAD")
+
+		$? == 0
 	end
 end
 
