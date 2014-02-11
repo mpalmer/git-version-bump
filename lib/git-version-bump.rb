@@ -1,4 +1,34 @@
 module GitVersionBump
+	def self.dirty_tree?
+		# Are we in a dirty, dirty tree?
+		system("! git diff --no-ext-diff --quiet --exit-code || ! git diff-index --cached --quiet HEAD")
+
+		$? == 0
+	end
+
+	def self.caller_gemspec
+		# First up, who called us?  Because this method gets called from other
+		# methods within this file, we can't just look at Gem.location_of_caller,
+		# but instead we need to parse the whole caller stack ourselves.
+		caller_file = caller.
+		                map  { |l| l.split(':')[0] }.
+		                find { |l| l != __FILE__ }
+
+		# Next we grovel through all the loaded gems to try and find the gem
+		# that contains the caller's file.
+		Gem.loaded_specs.values.each do |spec|
+			if Dir.
+				  glob(spec.lib_dirs_glob).
+				  find { |d| caller_file.index(d) == 0 }
+				# The caller_file is in this
+				# gem!  Woohoo!
+				return spec
+			end
+		end
+
+		nil
+	end
+
 	def self.version
 		git_ver = `git describe --dirty --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
@@ -21,7 +51,7 @@ module GitVersionBump
 		# information out of rubygems, given only the filename of who called
 		# us.  This takes a little bit of effort.
 
-		if spec = GVB.caller_gemspec
+		if spec = caller_gemspec
 			return spec.version.to_s
 		else
 			# If we got here, something went *badly* wrong -- presumably, we
@@ -31,9 +61,11 @@ module GitVersionBump
 					  "GVB.version called from mysterious, non-gem location."
 		end
 	end
-	
+
+	VERSION = version
+
 	def self.major_version
-		ver = GVB.version
+		ver = version
 		v   = ver.split('.')[0]
 		
 		unless v =~ /^[0-9]+$/
@@ -43,9 +75,11 @@ module GitVersionBump
 		
 		return v.to_i
 	end
-	
+
+	MAJOR_VERSION = major_version
+
 	def self.minor_version
-		ver = GVB.version
+		ver = version
 		v   = ver.split('.')[1]
 		
 		unless v =~ /^[0-9]+$/
@@ -55,9 +89,11 @@ module GitVersionBump
 		
 		return v.to_i
 	end
-	
+
+	MINOR_VERSION = minor_version
+
 	def self.patch_version
-		ver = GVB.version
+		ver = version
 		v   = ver.split('.')[2]
 		
 		unless v =~ /^[0-9]+$/
@@ -67,18 +103,22 @@ module GitVersionBump
 		
 		return v.to_i
 	end
-	
+
+	PATCH_VERSION = patch_version
+
 	def self.internal_revision
-		GVB.version.split('.', 4)[3].to_s
+		version.split('.', 4)[3].to_s
 	end
-	
+
+	INTERNAL_REVISION = internal_revision
+
 	def self.date
 		# Are we in a git tree?
 		system("git status >/dev/null 2>&1")
 		if $? == 0
 			# Yes, we're in git.
 			
-			if GVB.dirty_tree?
+			if dirty_tree?
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
@@ -86,7 +126,7 @@ module GitVersionBump
 			end
 		else
 			# Not in git; time to hit the gemspecs
-			if spec = GVB.caller_gemspec
+			if spec = caller_gemspec
 				return spec.version.to_s
 			else
 				raise RuntimeError,
@@ -94,44 +134,16 @@ module GitVersionBump
 			end
 		end
 	end
-	
+
+	DATE = date
+
 	def self.tag_version(v)
-		if GVB.dirty_tree?
+		if dirty_tree?
 			puts "You have uncommitted files.  Refusing to tag a dirty tree."
 		else
 			puts "Tagging version #{v}..."
 			system("git tag -a -m 'Version v#{v}' v#{v}")
 		end
-	end
-	
-	def self.caller_gemspec
-		# First up, who called us?  Because this method gets called from other
-		# methods within this file, we can't just look at Gem.location_of_caller,
-		# but instead we need to parse the whole caller stack ourselves.
-		caller_file = caller.
-		                map  { |l| l.split(':')[0] }.
-		                find { |l| l != __FILE__ }
-		
-		# Next we grovel through all the loaded gems to try and find the gem
-		# that contains the caller's file.
-		Gem.loaded_specs.values.each do |spec|
-			if Dir.
-				  glob(spec.lib_dirs_glob).
-				  find { |d| caller_file.index(d) == 0 }
-				# The caller_file is in this
-				# gem!  Woohoo!
-				return spec
-			end
-		end
-
-		nil
-	end
-
-	def self.dirty_tree?
-		# Are we in a dirty, dirty tree?
-		system("! git diff --no-ext-diff --quiet --exit-code || ! git diff-index --cached --quiet HEAD")
-
-		$? == 0
 	end
 end
 
