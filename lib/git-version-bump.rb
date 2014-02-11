@@ -15,7 +15,7 @@ module GitVersionBump
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it.
 		system("git status >/dev/null 2>&1")
-		return "0.0.0.ENOTAG" if $? == 0
+		return "0.0.0.1.ENOTAG" if $? == 0
 
 		# We're not in a git repo.  This means that we need to get version
 		# information out of rubygems, given only the filename of who called

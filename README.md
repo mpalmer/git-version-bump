@@ -42,8 +42,8 @@ the version of the code in use.  This information will be part of the
 version string provided by `gvb_version`.
 
 If any of these methods are called when there isn't a tag or other version
-information available, the version will be assumed to be `0.0.0.ENOTAG` with
-a date of `1970-01-01`.
+information available, the version will be assumed to be `0.0.0.1.ENOTAG`
+with a date of `1970-01-01`.
 
 
 ## In your gemspec
