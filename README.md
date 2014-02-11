@@ -18,6 +18,10 @@ You will now have the following rake tasks available:
     rake version:bump:minor  # bump minor version (x.y.z -> x.y+1.0)
     rake version:bump:patch  # bump patch version (x.y.z -> x.y.z+1)
 
+(Since `version:bump:major` is a lot of typing, there are also shortcuts:
+`v:b:major`, `v:b:maj`, `v:b:minor`, `v:b:min`, `v:b:patch`, `v:b:pat`, and
+`v:b:p`)
+
 By running any of those, a new tag will be created representing the newly
 incremented version number at the current commit.  If no tags currently
 exist, the previous version will be taken to be `0.0.0` and then incremented

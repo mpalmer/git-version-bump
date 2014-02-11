@@ -24,3 +24,17 @@ namespace :version do
 		end
 	end
 end
+
+namespace :v do
+	namespace :b do
+		task :major => "version:bump:major"
+		task :maj   => "version:bump:major"
+		
+		task :minor => "version:bump:minor"
+		task :min   => "version:bump:minor"
+
+		task :patch => "version:bump:patch"
+		task :pat   => "version:bump:patch"
+		task :p     => "version:bump:patch"
+	end
+end
