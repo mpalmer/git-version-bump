@@ -34,7 +34,7 @@ module GitVersionBump
 	end
 
 	def self.version(gem = nil)
-		git_ver = `git describe --dirty --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
+		git_ver = `git describe --dirty='.1.dirty' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
