@@ -1,14 +1,44 @@
 Maintain your program versions entirely within git.  No local files
-required!
+required!  All versioning information is stored using git tags.
 
-This gem contains a set of Rake tasks and associated code to manage the
-versioning of your code via git tags.  No in-repo file is required to store
-your version, which reduces unnecessary duplication of information.
+This gem contains a command-line tool and set of Rake tasks to increment
+and display your version numbers via git tags, and some associated Ruby code to use
+inside a gemspec or your program to retrieve the current version number, for
+use in builds and at runtime.
 
 
 # Usage
 
-In your `Rakefile`, add the following line:
+Most of your day-to-day usage of `git-version-bump` will be via the command
+line.  When you bump a version, a new tag will be created representing the newly
+incremented version number at the current commit.  If no tags currently
+exist, the previous version will be taken to be `0.0.0` and then incremented
+accordingly.
+
+
+## On the command line
+
+Pretty damned trivial:
+
+    git version-bump <major|minor|patch|show>
+
+You can also shorten the specifier to any unique substring:
+
+    git version-bump ma
+    git version-bump mi
+    git version-bump p
+    git version-bump s
+
+I recommend adding an alias to your `~/.gitconfig` file, for less typing:
+
+    [alias]
+        vb = version-bump
+
+
+## In your `Rakefile`
+
+If you'd like to have access to the version-bumping goodness via `rake`, add
+the following line to your `Rakefile`:
 
     require 'git-version-bump/rake-tasks'
 
@@ -17,15 +47,14 @@ You will now have the following rake tasks available:
     rake version:bump:major  # bump major version (x.y.z -> x+1.0.0)
     rake version:bump:minor  # bump minor version (x.y.z -> x.y+1.0)
     rake version:bump:patch  # bump patch version (x.y.z -> x.y.z+1)
+    rake version:bump:show   # Print current version number
 
 (Since `version:bump:major` is a lot of typing, there are also shortcuts:
 `v:b:major`, `v:b:maj`, `v:b:minor`, `v:b:min`, `v:b:patch`, `v:b:pat`, and
 `v:b:p`)
 
-By running any of those, a new tag will be created representing the newly
-incremented version number at the current commit.  If no tags currently
-exist, the previous version will be taken to be `0.0.0` and then incremented
-accordingly.
+
+## In your Ruby code
 
 To get access to this version information in your code (such as in your
 `gemspec`, or the definition of a `::VERSION` constant), you can `require
@@ -50,7 +79,7 @@ information available, the version will be assumed to be `0.0.0.1.ENOTAG`
 with a date of `1970-01-01`.
 
 
-## In your gemspec
+### In your gemspec
 
 Typically, you want to encode your version and commit date into your
 gemspec, like this:
@@ -69,10 +98,10 @@ system was built from pristine sources, or with that experimental patch you
 were trying out...
 
 
-## In your gem
+### In your gem
 
 If, like me, you're one of those people who likes to be able to easily see
-what version of a library I'm running, then you probably like to define a
+what version of a library you're running, then you probably like to define a
 `VERSION` constant somewhere in your gem's namespace.  That, too, is simple
 to do:
 
