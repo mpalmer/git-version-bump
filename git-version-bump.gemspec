@@ -14,7 +14,8 @@ Gem::Specification.new do |s|
 
 	s.extra_rdoc_files = ["README.md"]
 	s.files = `git ls-files`.split("\n")
-	
+	s.executables = ["git-version-bump"]
+
 	s.add_development_dependency 'rake'
 	s.add_development_dependency 'bundler'
 	s.add_development_dependency 'rdoc'

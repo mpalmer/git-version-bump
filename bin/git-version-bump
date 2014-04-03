@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+
+require 'git-version-bump'
+
+if ARGV[0].nil? or
+   ARGV[0].empty? or
+   ARGV[0] == '-h' or
+   ARGV[0] == '--help'
+	$stderr.puts <<-EOF.gsub(/^\t\t/, '')
+		Usage: git version-bump <major|minor|patch>
+
+		'major': x.y.z -> x+1.0.0
+		'minor': x.y.z -> x.y+1.0
+		'patch': x.y.z -> x.y.z+1
+	EOF
+end
+
+if ARGV[0].nil? or ARGV[0].empty?
+	exit 1
+elsif ARGV[0] == '-h' or ARGV[0] == '--help'
+	exit 0
+end
+
+case ARGV[0].downcase
+	when /^maj?o?r?$/
+		GVB.tag_version "#{GVB.major_version + 1}.0.0"
+	when /^min?o?r?$/
+		GVB.tag_version "#{GVB.major_version}.#{GVB.minor_version+1}.0"
+	when /^pa?t?c?h?$/
+		GVB.tag_version "#{GVB.major_version}.#{GVB.minor_version}.#{GVB.patch_version+1}"
+	else
+		$stderr.puts "Unknown argument: #{ARGV[0]}.  Try --help."
+		exit 1
+end
+
+puts "Version is now #{GVB.version}."
