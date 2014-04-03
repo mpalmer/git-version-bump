@@ -70,7 +70,7 @@ module GitVersionBump
 			# weren't called from within a loaded gem, and so we've got *no*
 			# idea what's going on.  Time to bail!
 			raise RuntimeError,
-					  "GVB.version(#{gem.inspect}) called from mysterious, non-gem location."
+					  "GVB.version(#{gem.inspect}) failed.  Is git installed?"
 		end
 	end
 
