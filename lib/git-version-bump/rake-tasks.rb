@@ -22,6 +22,11 @@ namespace :version do
 
 			puts "Version is now #{GVB.version}"
 		end
+
+		desc "Print current version"
+		task :show do
+			puts GVB.version
+		end
 	end
 end
 
@@ -36,5 +41,9 @@ namespace :v do
 		task :patch => "version:bump:patch"
 		task :pat   => "version:bump:patch"
 		task :p     => "version:bump:patch"
+
+		task :show  => "version:bump:show"
+		task :sh    => "version:bump:show"
+		task :s     => "version:bump:show"
 	end
 end
