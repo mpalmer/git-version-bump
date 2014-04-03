@@ -34,6 +34,10 @@ module GitVersionBump
 	end
 
 	def self.version(gem = nil)
+		@version_cache ||= {}
+
+		return @version_cache[gem] if @version_cache[gem]
+
 		git_ver = `git describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
 		            gsub(/^v/, '').
