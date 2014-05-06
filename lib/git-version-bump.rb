@@ -42,14 +42,14 @@ module GitVersionBump
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
-		
+
 		# If git returned success, then it gave us a described version.
 		# Success!
 		return git_ver if $? == 0
 
 		# git failed us; we're either not in a git repo or else we've never
 		# tagged anything before.
-		
+
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it.
 		system("git status >/dev/null 2>&1")
@@ -79,12 +79,12 @@ module GitVersionBump
 	def self.major_version(gem = nil)
 		ver = version(gem)
 		v   = ver.split('.')[0]
-		
+
 		unless v =~ /^[0-9]+$/
 			raise ArgumentError,
 			        "#{v} (part of #{ver.inspect}) is not a numeric version component.  Abandon ship!"
 		end
-		
+
 		return v.to_i
 	end
 
@@ -93,12 +93,12 @@ module GitVersionBump
 	def self.minor_version(gem = nil)
 		ver = version(gem)
 		v   = ver.split('.')[1]
-		
+
 		unless v =~ /^[0-9]+$/
 			raise ArgumentError,
 			        "#{v} (part of #{ver.inspect}) is not a numeric version component.  Abandon ship!"
 		end
-		
+
 		return v.to_i
 	end
 
@@ -107,12 +107,12 @@ module GitVersionBump
 	def self.patch_version(gem = nil)
 		ver = version(gem)
 		v   = ver.split('.')[2]
-		
+
 		unless v =~ /^[0-9]+$/
 			raise ArgumentError,
 			        "#{v} (part of #{ver.inspect}) is not a numeric version component.  Abandon ship!"
 		end
-		
+
 		return v.to_i
 	end
 
