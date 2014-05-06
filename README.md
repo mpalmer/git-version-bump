@@ -113,3 +113,11 @@ to do:
 
 This will work correctly inside your git tree, and also in your installed
 gem.  Magical!
+
+
+# Contributing
+
+Send your pull requests to the [Github
+repo](https://github.com/mpalmer/git-version-bump), or send patches to
+`theshed+git-version-bump@hezmatt.org`.  Bug reports can be sent to the same
+place, although I greatly prefer patches.
