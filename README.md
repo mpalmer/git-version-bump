@@ -34,6 +34,18 @@ I recommend adding an alias to your `~/.gitconfig` file, for less typing:
     [alias]
         vb = version-bump
 
+You can also add your own release notes to your release tags, by using the
+`-n` (or `--notes`, if you like typing) option:
+
+    git version-bump -n minor
+
+This will open an editor, containing a list of the commits since the last
+release tag, in which you can type your release notes.  If you follow
+standard git commit style (a "heading" line, then a blank line, followed by
+free-form text) you're perfectly positioned to use
+[github-release](http://theshed.hezmatt.org/github-release) to make
+gorgeous-looking release announcements to Github.
+
 
 ## In your `Rakefile`
 

@@ -1,3 +1,6 @@
+require 'tempfile'
+require 'digest/sha1'
+
 module GitVersionBump
 	def self.dirty_tree?
 		# Are we in a dirty, dirty tree?
@@ -153,12 +156,46 @@ module GitVersionBump
 
 	DATE = date('git-version-bump')
 
-	def self.tag_version(v)
+	def self.tag_version(v, release_notes = false)
 		if dirty_tree?
 			puts "You have uncommitted files.  Refusing to tag a dirty tree."
 		else
-			puts "Tagging version #{v}..."
-			system("git tag -a -m 'Version v#{v}' v#{v}")
+			if release_notes
+				# We need to find the tag before this one, so we can list all the commits
+				# between the two.  This is not a trivial operation.
+				prev_tag = `git describe --always`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
+
+				log_file = Tempfile.new('gvb')
+
+				log_file.puts <<-EOF.gsub(/^\t\t\t\t\t/, '')
+
+
+
+					# Write your release notes above.  The first line should be the release name.
+					# To help you remember what's in here, the commits since your last release
+					# are listed below.
+					#
+				EOF
+
+				log_file.close
+				system("git log --format='# %h  %s' #{prev_tag}..HEAD >>#{log_file.path}")
+
+				pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
+				system("git config -e -f #{log_file.path}")
+				if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
+					puts "Release notes not edited; aborting"
+					log_file.unlink
+					return
+				end
+
+				puts "Tagging version #{v}..."
+				system("git tag -a -F #{log_file.path} v#{v}")
+				log_file.unlink
+			else
+				# Crikey this is a lot simpler
+				system("git tag -a -m 'Version v#{v}' v#{v}")
+			end
+
 			system("git push >/dev/null 2>&1")
 			system("git push --tags >/dev/null 2>&1")
 		end
