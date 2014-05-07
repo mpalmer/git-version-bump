@@ -19,7 +19,7 @@ if ARGV[0].nil? or
 	EOF
 end
 
-release_notes = ARGV.delete('-n') or ARGV.delete('--notes')
+release_notes = ARGV.delete('-n') || ARGV.delete('--notes')
 
 if ARGV[0].nil? or ARGV[0].empty?
 	exit 1
