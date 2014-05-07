@@ -36,6 +36,8 @@ module GitVersionBump
 		nil
 	end
 
+	GVB_FILE = ".gvb"
+
 	def self.version(gem = nil)
 		@version_cache ||= {}
 
@@ -49,6 +51,12 @@ module GitVersionBump
 		# If git returned success, then it gave us a described version.
 		# Success!
 		return git_ver if $? == 0
+
+		# If that fails, check the local saved cache version file
+		if File.exists? GVB_FILE
+			cache = File.read(GVB_FILE)
+			return cache if cache
+		end
 
 		# git failed us; we're either not in a git repo or else we've never
 		# tagged anything before.
@@ -160,6 +168,10 @@ module GitVersionBump
 		if dirty_tree?
 			puts "You have uncommitted files.  Refusing to tag a dirty tree."
 		else
+			File.open(GVB_FILE, "w") { |f| f.write(v)}
+			system("git add #{GVB_FILE}")
+			system("git commit #{GVB_FILE} -m 'bump version file'")
+
 			if release_notes
 				# We need to find the tag before this one, so we can list all the commits
 				# between the two.  This is not a trivial operation.
@@ -195,7 +207,6 @@ module GitVersionBump
 				# Crikey this is a lot simpler
 				system("git tag -a -m 'Version v#{v}' v#{v}")
 			end
-
 			system("git push >/dev/null 2>&1")
 			system("git push --tags >/dev/null 2>&1")
 		end
