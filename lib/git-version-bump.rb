@@ -217,8 +217,10 @@ module GitVersionBump
 				# Crikey this is a lot simpler
 				system("git tag -a -m 'Version v#{v}' v#{v}")
 			end
+
 			system("git push >/dev/null 2>&1")
 			system("git push --tags >/dev/null 2>&1")
+
 			if args[:write_version]
 				puts "Writing version to #{@gvb_file} ..."
 				write_version_file v
