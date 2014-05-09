@@ -36,8 +36,7 @@ module GitVersionBump
 		nil
 	end
 
-	@gvb_file = `git config --get gvb.version_file 2>/dev/null`.strip
-	@gvb_file = ".gvb_version" if @gvb_file.empty?
+	@gvb_file = ".gvb_version" 
 
 	def self.version(gem = nil)
 		@version_cache ||= {}
