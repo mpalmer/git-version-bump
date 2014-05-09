@@ -36,6 +36,8 @@ module GitVersionBump
 		nil
 	end
 
+	@gvb_file = ".gvb_version" 
+
 	def self.version(gem = nil)
 		@version_cache ||= {}
 
@@ -50,6 +52,11 @@ module GitVersionBump
 		# Success!
 		return git_ver if $? == 0
 
+		# If that fails, check the local saved cache version file
+		if File.exists? @gvb_file
+			cache = File.read(@gvb_file)
+			return cache if cache
+		end
 		# git failed us; we're either not in a git repo or else we've never
 		# tagged anything before.
 
@@ -154,13 +161,27 @@ module GitVersionBump
 		end
 	end
 
+	def self.write_version_file v
+		File.open(@gvb_file, "w") { |f| f.write(v)}
+	end
+
+	def self.commit_version_file v
+		system("git add #{@gvb_file}")
+		system("git commit #{@gvb_file} -m 'bump version file'")
+	end
+
 	DATE = date('git-version-bump')
 
-	def self.tag_version(v, release_notes = false)
+	def self.tag_version(v, args)
 		if dirty_tree?
 			puts "You have uncommitted files.  Refusing to tag a dirty tree."
 		else
-			if release_notes
+			if args[:commit_version]
+				puts "Writing version to #{@gvb_file} and commit bumping..."
+				write_version_file v
+				commit_version_file v
+			end
+			if args[:release_notes]
 				# We need to find the tag before this one, so we can list all the commits
 				# between the two.  This is not a trivial operation.
 				prev_tag = `git describe --always`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
@@ -198,6 +219,11 @@ module GitVersionBump
 
 			system("git push >/dev/null 2>&1")
 			system("git push --tags >/dev/null 2>&1")
+
+			if args[:write_version]
+				puts "Writing version to #{@gvb_file} ..."
+				write_version_file v
+			end
 		end
 	end
 end

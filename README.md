@@ -47,6 +47,37 @@ free-form text) you're perfectly positioned to use
 gorgeous-looking release announcements to Github.
 
 
+## Optional: Save your version to file
+ 
+ You can make `git-version-bump` save your version to file, and/or commit it to
+ your repository, if you so wish.
+ 
+ By default, it saves the version to `.gvb_version`. You can change this by
+ setting the `gvb.version_file` git configuration to your preferred file name.
+ 
+ When making a version bump, you can add these options:
+ 
+   * `git version-bump -w`
+  
+  This will write your version to file, but not commit it. Use this in
+  conjuction with a `.gitignore` entry to ensure your tree does not become
+  dirty.
+ 
+Also:
+
+  * `git version-bump -c`
+
+  This will write your version to file, *and* commit it to your repository,
+  and then make the tag. The last commit will show as "bump version".
+ 
+Using these options, GVB will be able to read the version out of this saved file 
+when running outside of a git environment, such as an external deployment, or 
+packged application.
+ 
+Note: if you don't use `-w` or `-c` when bumping, any copy of your code outside 
+your git environment will not be able to return a version, so `GVB.version` calls 
+won't work. 
+
 ## In your `Rakefile`
 
 If you'd like to have access to the version-bumping goodness via `rake`, add
