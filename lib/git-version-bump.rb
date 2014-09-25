@@ -2,6 +2,8 @@ require 'tempfile'
 require 'digest/sha1'
 
 module GitVersionBump
+	class VersionUnobtainable < StandardError; end
+
 	def self.dirty_tree?
 		# Are we in a dirty, dirty tree?
 		system("! git diff --no-ext-diff --quiet --exit-code || ! git diff-index --cached --quiet HEAD")
@@ -37,10 +39,6 @@ module GitVersionBump
 	end
 
 	def self.version(gem = nil)
-		@version_cache ||= {}
-
-		return @version_cache[gem] if @version_cache[gem]
-
 		git_ver = `git describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
 		            gsub(/^v/, '').
@@ -72,8 +70,8 @@ module GitVersionBump
 			# If we got here, something went *badly* wrong -- presumably, we
 			# weren't called from within a loaded gem, and so we've got *no*
 			# idea what's going on.  Time to bail!
-			raise RuntimeError,
-					  "GVB.version(#{gem.inspect}) failed.  Is git installed?"
+			raise VersionUnobtainable,
+			      "GVB.version(#{gem.inspect}) failed.  Is git installed?"
 		end
 	end
 
