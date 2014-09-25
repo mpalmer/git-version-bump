@@ -11,24 +11,27 @@ module GitVersionBump
 		$? == 0
 	end
 
+	def self.caller_file
+		# Who called us?  Because this method gets called from other methods
+		# within this file, we can't just look at Gem.location_of_caller, but
+		# instead we need to parse the caller stack ourselves to find which
+		# gem we're trying to version all over.
+		File.realpath(
+		  caller.
+		  map  { |l| l.split(':')[0] }.
+		  find { |l| l != __FILE__ }
+		)
+	end
+
 	def self.caller_gemspec
-		# First up, who called us?  Because this method gets called from other
-		# methods within this file, we can't just look at
-		# Gem.location_of_caller, but instead we need to parse the caller
-		# stack ourselves to find which gem we're trying to version all over.
-		caller_file = caller.
-		                map  { |l| l.split(':')[0] }.
-		                find { |l| l != __FILE__ }
+		cf = caller_file
 
-		# Real paths, please.
-		caller_file = File.realpath(caller_file)
-
-		# Next we grovel through all the loaded gems to try and find the gem
+		# Grovel through all the loaded gems to try and find the gem
 		# that contains the caller's file.
 		Gem.loaded_specs.values.each do |spec|
 			if Dir.
-				  glob(spec.lib_dirs_glob).
-				  find { |d| caller_file.index(File.realpath(d)) == 0 }
+			     glob(spec.lib_dirs_glob).
+			     find { |d| cf.index(File.realpath(d)) == 0 }
 				# The caller_file is in this
 				# gem!  Woohoo!
 				return spec
@@ -39,7 +42,10 @@ module GitVersionBump
 	end
 
 	def self.version(gem = nil)
-		git_ver = `git describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
+		# Shell Quoted, for your convenience
+		sq_git_dir = "'" + File.dirname(caller_file).gsub("'", "'\\''") + "'"
+
+		git_ver = `git -C #{sq_git_dir) describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
@@ -53,7 +59,7 @@ module GitVersionBump
 
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it.
-		system("git status >/dev/null 2>&1")
+		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
 		return "0.0.0.1.ENOTAG" if $? == 0
 
 		if gem
