@@ -171,7 +171,7 @@ module GitVersionBump
 
 					# Write your release notes above.  The first line should be the release name.
 					# To help you remember what's in here, the commits since your last release
-					# are listed below.
+					# are listed below. This will become v#{v}
 					#
 				EOF
 
