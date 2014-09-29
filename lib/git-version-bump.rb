@@ -29,8 +29,7 @@ module GitVersionBump
 		# Grovel through all the loaded gems to try and find the gem
 		# that contains the caller's file.
 		Gem.loaded_specs.values.each do |spec|
-			if Dir.
-			     glob(spec.lib_dirs_glob).
+			if (Dir.glob(spec.lib_dirs_glob) + Dir["#{spec.bin_dir}/*"]).
 			     find { |d| cf.index(File.realpath(d)) == 0 }
 				# The caller_file is in this
 				# gem!  Woohoo!
