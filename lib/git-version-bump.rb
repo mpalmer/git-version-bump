@@ -24,7 +24,7 @@ module GitVersionBump
 	end
 
 	def self.caller_gemspec
-		cf = caller_file
+		cf = caller_file or return nil
 
 		# Grovel through all the loaded gems to try and find the gem
 		# that contains the caller's file.
@@ -38,12 +38,13 @@ module GitVersionBump
 			end
 		end
 
-		nil
+		raise VersionUnobtainable,
+		      "Unable to find gemspec for caller file #{cf}"
 	end
 
-	def self.version(gem = nil)
+	def self.version
 		# Shell Quoted, for your convenience
-		sq_git_dir = "'" + File.dirname(caller_file).gsub("'", "'\\''") + "'"
+		sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
 
 		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
@@ -62,10 +63,6 @@ module GitVersionBump
 		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
 		return "0.0.0.1.ENOTAG" if $? == 0
 
-		if gem
-			return Gem.loaded_specs[gem].version.to_s
-		end
-
 		# We're not in a git repo.  This means that we need to get version
 		# information out of rubygems, given only the filename of who called
 		# us.  This takes a little bit of effort.
@@ -81,10 +78,8 @@ module GitVersionBump
 		end
 	end
 
-	VERSION = version('git-version-bump')
-
-	def self.major_version(gem = nil)
-		ver = version(gem)
+	def self.major_version
+		ver = version
 		v   = ver.split('.')[0]
 
 		unless v =~ /^[0-9]+$/
@@ -95,10 +90,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	MAJOR_VERSION = major_version('git-version-bump')
-
-	def self.minor_version(gem = nil)
-		ver = version(gem)
+	def self.minor_version
+		ver = version
 		v   = ver.split('.')[1]
 
 		unless v =~ /^[0-9]+$/
@@ -109,10 +102,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	MINOR_VERSION = minor_version('git-version-bump')
-
-	def self.patch_version(gem = nil)
-		ver = version(gem)
+	def self.patch_version
+		ver = version
 		v   = ver.split('.')[2]
 
 		unless v =~ /^[0-9]+$/
@@ -123,15 +114,11 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	PATCH_VERSION = patch_version('git-version-bump')
-
-	def self.internal_revision(gem = nil)
-		version(gem).split('.', 4)[3].to_s
+	def self.internal_revision
+		version.split('.', 4)[3].to_s
 	end
 
-	INTERNAL_REVISION = internal_revision('git-version-bump')
-
-	def self.date(gem = nil)
+	def self.date
 		# Are we in a git tree?
 		system("git status >/dev/null 2>&1")
 		if $? == 0
@@ -145,20 +132,14 @@ module GitVersionBump
 			end
 		else
 			# Not in git; time to hit the gemspecs
-			if gem
-				return Gem.loaded_specs[gem].date.strftime("%F")
-			end
-
 			if spec = caller_gemspec
 				return spec.date.strftime("%F")
 			end
 
 			raise RuntimeError,
-				  "GVB.date(#{gem.inspect}) called from mysterious, non-gem location."
+				  "GVB.date called from mysterious, non-gem location."
 		end
 	end
-
-	DATE = date('git-version-bump')
 
 	def self.tag_version(v, release_notes = false)
 		if dirty_tree?
@@ -206,4 +187,6 @@ module GitVersionBump
 	end
 end
 
-GVB = GitVersionBump
+GVB = GitVersionBump unless defined? GVB
+
+require_relative 'git-version-bump/version'
