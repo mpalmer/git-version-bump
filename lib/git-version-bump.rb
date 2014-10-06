@@ -4,6 +4,12 @@ require 'digest/sha1'
 module GitVersionBump
 	class VersionUnobtainable < StandardError; end
 
+	def self.git_available?
+		system("git --version >/dev/null 2>&1")
+
+		$? == 0
+	end
+
 	def self.dirty_tree?
 		# Are we in a dirty, dirty tree?
 		system("! git diff --no-ext-diff --quiet --exit-code || ! git diff-index --cached --quiet HEAD")
@@ -41,9 +47,18 @@ module GitVersionBump
 		      "Unable to find gemspec for caller file #{cf}"
 	end
 
-	def self.version
-		# Shell Quoted, for your convenience
-		sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
+	def self.version(use_local_git=false)
+		if use_local_git
+			unless git_available?
+				raise RuntimeError,
+				      "GVB.version(use_local_git=true) called, but git isn't installed"
+			end
+
+			sq_git_dir = "'#{Dir.pwd.gsub("'", "'\\''")}'"
+		else
+			# Shell Quoted, for your convenience
+			sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
+		end
 
 		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
 		            strip.
@@ -66,19 +81,29 @@ module GitVersionBump
 		# information out of rubygems, given only the filename of who called
 		# us.  This takes a little bit of effort.
 
+		if use_local_git
+			raise VersionUnobtainable,
+			      "Unable to determine version from local git repo.  This should never happen."
+		end
+
 		if spec = caller_gemspec
 			return spec.version.to_s
 		else
 			# If we got here, something went *badly* wrong -- presumably, we
 			# weren't called from within a loaded gem, and so we've got *no*
 			# idea what's going on.  Time to bail!
-			raise VersionUnobtainable,
-			      "GVB.version(#{gem.inspect}) failed.  Is git installed?"
+			if git_available
+				raise VersionUnobtainable,
+				      "GVB.version(#{use_local_git.inspect}) failed, and I really don't know why."
+			else
+				raise VersionUnobtainable,
+				      "GVB.version(#{use_local_git.inspect}) failed; perhaps you need to install git?"
+			end
 		end
 	end
 
-	def self.major_version
-		ver = version
+	def self.major_version(use_local_git=false)
+		ver = version(use_local_git)
 		v   = ver.split('.')[0]
 
 		unless v =~ /^[0-9]+$/
@@ -89,8 +114,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.minor_version
-		ver = version
+	def self.minor_version(use_local_git=false)
+		ver = version(use_local_git)
 		v   = ver.split('.')[1]
 
 		unless v =~ /^[0-9]+$/
@@ -101,8 +126,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.patch_version
-		ver = version
+	def self.patch_version(use_local_git=false)
+		ver = version(use_local_git)
 		v   = ver.split('.')[2]
 
 		unless v =~ /^[0-9]+$/
@@ -113,13 +138,25 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.internal_revision
-		version.split('.', 4)[3].to_s
+	def self.internal_revision(use_local_git=false)
+		version(use_local_git).split('.', 4)[3].to_s
 	end
 
-	def self.date
+	def self.date(use_local_git=false)
+		if use_local_git
+			unless git_available?
+				raise RuntimeError,
+				      "GVB.date(use_local_git=true), but git is not installed"
+			end
+
+			sq_git_dir = "'#{Dir.pwd.gsub("'", "'\\''")}'"
+		else
+			# Shell Quoted, for your convenience
+			sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
+		end
+
 		# Are we in a git tree?
-		system("git status >/dev/null 2>&1")
+		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
 		if $? == 0
 			# Yes, we're in git.
 
@@ -127,9 +164,14 @@ module GitVersionBump
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return `git show --format=format:%ad --date=short | head -n 1`.strip
+				return `git -C #{sq_git_dir} show --format=format:%ad --date=short | head -n 1`.strip
 			end
 		else
+			if use_local_git
+				raise RuntimeError,
+				      "GVB.date(use_local_git=true) called from non-git location"
+			end
+
 			# Not in git; time to hit the gemspecs
 			if spec = caller_gemspec
 				return spec.date.strftime("%F")

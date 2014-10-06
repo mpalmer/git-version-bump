@@ -29,13 +29,13 @@ end
 
 case ARGV[0].downcase
 	when /^maj?o?r?$/
-		GVB.tag_version "#{GVB.major_version + 1}.0.0", release_notes
+		GVB.tag_version "#{GVB.major_version(true) + 1}.0.0", release_notes
 	when /^min?o?r?$/
-		GVB.tag_version "#{GVB.major_version}.#{GVB.minor_version+1}.0", release_notes
+		GVB.tag_version "#{GVB.major_version(true)}.#{GVB.minor_version(true)+1}.0", release_notes
 	when /^pa?t?c?h?$/
-		GVB.tag_version "#{GVB.major_version}.#{GVB.minor_version}.#{GVB.patch_version+1}", release_notes
+		GVB.tag_version "#{GVB.major_version(true)}.#{GVB.minor_version(true)}.#{GVB.patch_version(true)+1}", release_notes
 	when /^sh?o?w?$/
-		puts GVB.version
+		puts GVB.version(true)
 		exit 0
 	else
 		$stderr.puts "Unknown argument: #{ARGV[0]}.  Try --help."
