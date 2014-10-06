@@ -42,4 +42,4 @@ case ARGV[0].downcase
 		exit 1
 end
 
-puts "Version is now #{GVB.version}."
+puts "Version is now #{GVB.version(true)}."
