@@ -16,6 +16,7 @@ Gem::Specification.new do |s|
 	s.files = `git ls-files`.split("\n")
 	s.executables = ["git-version-bump"]
 
+	s.add_development_dependency 'github-release'
 	s.add_development_dependency 'rake'
 	s.add_development_dependency 'bundler'
 	s.add_development_dependency 'rdoc'
