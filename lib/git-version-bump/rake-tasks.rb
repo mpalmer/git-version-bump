@@ -1,4 +1,4 @@
-require_relative '../git-version-bump'
+require 'git-version-bump'
 
 namespace :version do
 	namespace :bump do

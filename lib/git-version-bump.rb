@@ -230,4 +230,4 @@ end
 
 GVB = GitVersionBump unless defined? GVB
 
-require_relative 'git-version-bump/version'
+require 'git-version-bump/version'
