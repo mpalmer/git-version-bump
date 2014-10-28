@@ -1,5 +1,6 @@
 require 'tempfile'
 require 'digest/sha1'
+require 'pathname'
 
 module GitVersionBump
 	class VersionUnobtainable < StandardError; end
@@ -22,11 +23,11 @@ module GitVersionBump
 		# within this file, we can't just look at Gem.location_of_caller, but
 		# instead we need to parse the caller stack ourselves to find which
 		# gem we're trying to version all over.
-		File.realpath(
+		Pathname(
 		  caller.
 		  map  { |l| l.split(':')[0] }.
 		  find { |l| l != __FILE__ }
-		) rescue nil
+		).realpath.to_s rescue nil
 	end
 
 	def self.caller_gemspec
@@ -36,7 +37,7 @@ module GitVersionBump
 		# that contains the caller's file.
 		Gem.loaded_specs.values.each do |spec|
 			if (Dir.glob(spec.lib_dirs_glob) + Dir["#{spec.bin_dir}/*"]).
-			     find { |d| cf.index(File.realpath(d)) == 0 }
+			     find { |d| cf.index(Pathname(d).realpath.to_s) == 0 }
 				# The caller_file is in this
 				# gem!  Woohoo!
 				return spec
