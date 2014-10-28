@@ -92,7 +92,7 @@ module GitVersionBump
 			# If we got here, something went *badly* wrong -- presumably, we
 			# weren't called from within a loaded gem, and so we've got *no*
 			# idea what's going on.  Time to bail!
-			if git_available
+			if git_available?
 				raise VersionUnobtainable,
 				      "GVB.version(#{use_local_git.inspect}) failed, and I really don't know why."
 			else
