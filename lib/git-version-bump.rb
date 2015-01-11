@@ -38,8 +38,15 @@ module GitVersionBump
 		Gem.loaded_specs.values.each do |spec|
 			search_dirs = spec.require_paths.map { |d| "#{spec.full_gem_path}/#{d}" } +
 			              [spec.bin_dir]
+			search_dirs.map! do |d|
+				begin
+					Pathname(d).realpath.to_s
+				rescue Errno::ENOENT
+					nil
+				end
+			end.compact!
 
-			if search_dirs.find { |d| cf.index(Pathname(d).realpath.to_s) == 0 }
+			if search_dirs.find { |d| cf.index(d) == 0 }
 				return spec
 			end
 		end
