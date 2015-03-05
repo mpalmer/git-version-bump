@@ -133,3 +133,11 @@ Send your pull requests to the [Github
 repo](https://github.com/mpalmer/git-version-bump), or send patches to
 `theshed+git-version-bump@hezmatt.org`.  Bug reports can be sent to the same
 place, although I greatly prefer patches.
+
+
+# Licence
+
+Unless otherwise specified, all code in this repository is licenced under
+the terms of the GNU Public Licence, version 3, as published by the Free
+Software Foundation.  The full terms of this licence can be found in the
+file LICENCE.
