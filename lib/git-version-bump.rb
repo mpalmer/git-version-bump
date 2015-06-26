@@ -262,7 +262,7 @@ module GitVersionBump
 		# that contains the caller's file.
 		Gem.loaded_specs.values.each do |spec|
 			search_dirs = spec.require_paths.map { |d| "#{spec.full_gem_path}/#{d}" } +
-			              [spec.bin_dir]
+			              [File.join(spec.gem_dir, spec.bindir)]
 			search_dirs.map! do |d|
 				begin
 					Pathname(d).realpath.to_s
