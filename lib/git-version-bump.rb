@@ -99,7 +99,7 @@ module GitVersionBump
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return `git -C #{sq_git_dir} show --format=format:%ad --date=short | head -n 1`.strip
+				return `git -C #{sq_git_dir} show --format=format:%cd --date=short | head -n 1`.strip
 			end
 		else
 			if use_local_git
