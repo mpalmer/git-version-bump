@@ -5,6 +5,8 @@ require 'pathname'
 module GitVersionBump
 	class VersionUnobtainable < StandardError; end
 
+	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
+
 	def self.version(use_local_git=false)
 		if use_local_git
 			unless git_available?
@@ -18,7 +20,7 @@ module GitVersionBump
 			sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
 		end
 
-		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2>/dev/null`.
+		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2> #{DEVNULL}`.
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
@@ -33,8 +35,8 @@ module GitVersionBump
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it, otherwise try to use the
 		# gem version.
-		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
-		 "0.0.0.1.ENOTAG" if $? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
+		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
+		"0.0.0.1.ENOTAG" if $? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
 	end
 
 	def self.major_version(use_local_git=false)
@@ -91,7 +93,7 @@ module GitVersionBump
 		end
 
 		# Are we in a git tree?
-		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
+		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
 		if $? == 0
 			# Yes, we're in git.
 
@@ -157,8 +159,8 @@ module GitVersionBump
 				system("git tag -a -m 'Version v#{v}' v#{v}")
 			end
 
-			system("git push >/dev/null 2>&1")
-			system("git push --tags >/dev/null 2>&1")
+			system("git push > #{DEVNULL} 2>&1")
+			system("git push --tags > #{DEVNULL} 2>&1")
 		end
 	end
 
@@ -224,21 +226,21 @@ module GitVersionBump
 
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it.
-		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
+		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
 		$? == 0 ? "0.0.0.1.ENOCOMMITS" : gem_version(use_local_git)
 	end
 
 	private
 
 	def self.git_available?
-		system("git --version >/dev/null 2>&1")
+		system("git --version > #{DEVNULL} 2>&1")
 
 		$? == 0
 	end
 
 	def self.dirty_tree?
 		# Are we in a dirty, dirty tree?
-		system("! git diff --no-ext-diff --quiet --exit-code 2>/dev/null || ! git diff-index --cached --quiet HEAD 2>/dev/null")
+		system("! git diff --no-ext-diff --quiet --exit-code 2> #{DEVNULL} || ! git diff-index --cached --quiet HEAD 2> #{DEVNULL}")
 
 		$? == 0
 	end
