@@ -14,10 +14,9 @@ module GitVersionBump
 				      "GVB.version(use_local_git=true) called, but git isn't installed"
 			end
 
-			sq_git_dir = "'#{Dir.pwd.gsub("'", "'\\''")}'"
+			sq_git_dir = shell_quoted_string(Dir.pwd)
 		else
-			# Shell Quoted, for your convenience
-			sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
+			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
 		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2> #{DEVNULL}`.
@@ -86,10 +85,9 @@ module GitVersionBump
 				      "GVB.date(use_local_git=true), but git is not installed"
 			end
 
-			sq_git_dir = "'#{Dir.pwd.gsub("'", "'\\''")}'"
+			sq_git_dir = shell_quoted_string(Dir.pwd)
 		else
-			# Shell Quoted, for your convenience
-			sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
+			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
 		# Are we in a git tree?
@@ -198,10 +196,9 @@ module GitVersionBump
 				      "GVB.commit_date_version(use_local_git=true) called, but git isn't installed"
 			end
 
-			sq_git_dir = "'#{Dir.pwd.gsub("'", "'\\''")}'"
+			sq_git_dir = shell_quoted_string(Dir.pwd)
 		else
-			# Shell Quoted, for your convenience
-			sq_git_dir = "'" + (File.dirname(caller_file) rescue nil || Dir.pwd).gsub("'", "'\\''") + "'"
+			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
 		commit_dates = `git -C #{sq_git_dir} log --format=%at`.
@@ -303,6 +300,18 @@ module GitVersionBump
 			end
 		end
 	end
+
+	def self.shell_quoted_string(dir_string)
+		if Gem.win_platform?
+			return "\"#{dir_string}\""
+		else
+			# Shell Quoted, for your convenience
+			return "'#{dir_string.gsub("'", "'\\''")}'"
+		end
+	end
+
+	private_class_method :shell_quoted_string
+
 end
 
 GVB = GitVersionBump unless defined? GVB
