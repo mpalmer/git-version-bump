@@ -34,7 +34,7 @@ module GitVersionBump
 		# super-special version and be done with it, otherwise try to use the
 		# gem version.
 		system("git -C #{sq_git_dir} status >/dev/null 2>&1")
-		 "0.0.0.1.ENOTAG" if $? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
+		 $? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
 	end
 
 	def self.major_version(use_local_git=false)
