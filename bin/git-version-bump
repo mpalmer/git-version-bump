@@ -4,10 +4,11 @@ require 'git-version-bump'
 
 if ARGV[0].nil? or
    ARGV[0].empty? or
+   (ARGV.length == 1 && (ARGV[0] == "-d" || ARGV[0] == "--dry_run")) or
    ARGV[0] == '-h' or
    ARGV[0] == '--help'
 	$stderr.puts <<-EOF.gsub(/^\t\t/, '')
-		Usage: git version-bump [-n|--notes] <major|minor|patch|show>
+		Usage: git version-bump [-n|--notes] [-d|--dry_run] <major|minor|patch|show>
 
 		'major': x.y.z -> x+1.0.0
 		'minor': x.y.z -> x.y+1.0
@@ -15,11 +16,13 @@ if ARGV[0].nil? or
 
 		'show': Display the current GVB version
 
-		--release: Prompt for "release notes" to add to the release tag
+		-d, --dry_run: Calculate and return the bump value, but don't update git workspace or remote
+		-n, --notes: Prompt for "release notes" to add to the release tag
 	EOF
 end
 
 release_notes = ARGV.delete('-n') || ARGV.delete('--notes')
+dry_run = ARGV.delete('-d') || ARGV.delete('--dry_run')
 
 if ARGV[0].nil? or ARGV[0].empty?
 	exit 1
@@ -27,13 +30,15 @@ elsif ARGV[0] == '-h' or ARGV[0] == '--help'
 	exit 0
 end
 
+result = nil
+
 case ARGV[0].downcase
 	when /^maj?o?r?$/
-		GVB.tag_version "#{GVB.major_version(true) + 1}.0.0", release_notes
+                result = "#{GVB.major_version(true) + 1}.0.0"
 	when /^min?o?r?$/
-		GVB.tag_version "#{GVB.major_version(true)}.#{GVB.minor_version(true)+1}.0", release_notes
+		result = "#{GVB.major_version(true)}.#{GVB.minor_version(true)+1}.0"
 	when /^pa?t?c?h?$/
-		GVB.tag_version "#{GVB.major_version(true)}.#{GVB.minor_version(true)}.#{GVB.patch_version(true)+1}", release_notes
+		result = "#{GVB.major_version(true)}.#{GVB.minor_version(true)}.#{GVB.patch_version(true)+1}"
 	when /^sh?o?w?$/
 		puts GVB.version(true)
 		exit 0
@@ -42,4 +47,9 @@ case ARGV[0].downcase
 		exit 1
 end
 
-puts "Version is now #{GVB.version(true)}."
+if dry_run
+  puts result
+else
+  GVB.tag_version result, release_notes
+  puts "Version is now #{GVB.version(true)}."
+end
