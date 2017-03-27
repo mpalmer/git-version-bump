@@ -19,7 +19,7 @@ module GitVersionBump
 			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
-		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2> #{DEVNULL}`.
+		git_ver = `git --git-dir #{sq_git_dir}/.git describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2> #{DEVNULL}`.
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
@@ -34,7 +34,7 @@ module GitVersionBump
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it, otherwise try to use the
 		# gem version.
-		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
+		system("git --git-dir #{sq_git_dir}/.git status > #{DEVNULL} 2>&1")
 		$? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
 	end
 
@@ -91,7 +91,7 @@ module GitVersionBump
 		end
 
 		# Are we in a git tree?
-		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
+		system("git --git-dir #{sq_git_dir}/.git status > #{DEVNULL} 2>&1")
 		if $? == 0
 			# Yes, we're in git.
 
@@ -99,7 +99,7 @@ module GitVersionBump
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return `git -C #{sq_git_dir} show --format=format:%cd --date=short`.lines.first.strip
+				return `git --git-dir #{sq_git_dir}/.git show --format=format:%cd --date=short`.lines.first.strip
 			end
 		else
 			if use_local_git
@@ -201,7 +201,7 @@ module GitVersionBump
 			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
-		commit_dates = `git -C #{sq_git_dir} log --format=%at`.
+		commit_dates = `git --git-dir #{sq_git_dir}/.git log --format=%at`.
 		               split("\n").
 		               map { |l| Time.at(Integer(l)).strftime("%Y%m%d") }
 
@@ -223,7 +223,7 @@ module GitVersionBump
 
 		# Are we in a git repo with no tags?  If so, dump out our
 		# super-special version and be done with it.
-		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
+		system("git --git-dir #{sq_git_dir}/.git status > #{DEVNULL} 2>&1")
 		$? == 0 ? "0.0.0.1.ENOCOMMITS" : gem_version(use_local_git)
 	end
 
