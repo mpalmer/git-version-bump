@@ -99,7 +99,7 @@ module GitVersionBump
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return `git -C #{sq_git_dir} show --format=format:%cd --date=short`.lines.first.strip
+				return `git -C #{sq_git_dir} show --no-show-signature --format=format:%cd --date=short`.lines.first.strip
 			end
 		else
 			if use_local_git
@@ -139,7 +139,7 @@ module GitVersionBump
 				EOF
 
 				log_file.close
-				system("git log --format='# %h  %s' #{prev_tag}..HEAD >>#{log_file.path}")
+				system("git log --no-show-signature --format='# %h  %s' #{prev_tag}..HEAD >>#{log_file.path}")
 
 				pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
 				system("git config -e -f #{log_file.path}")
