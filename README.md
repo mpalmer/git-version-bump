@@ -99,7 +99,7 @@ gemspec, like this:
     Gem::Specification.new do |s|
       s.version = GVB.version
       s.date    = GVB.date
-      
+
       ...
     end
 
@@ -118,13 +118,27 @@ what version of a library you're running, then you probably like to define a
 to do:
 
     require 'git-version-bump'
-    
+
     class Foobar
       VERSION = GVB.version
     end
 
 This will work correctly inside your git tree, and also in your installed
 gem.  Magical!
+
+#### For projects using lite tags
+
+If you are using GitHub releases for your project or some other method that
+involves light tags (tags with no annotations), you might notice that these
+tags are not detected by git-version-bump by default.  If you want these
+commits to be detected then use the following configuration:
+
+    require 'git-version-bump'
+
+    class Foobar
+      # First parameter is use_local_git, second is include_lite_tags
+      VERSION = GVB.version(false, true)
+    end
 
 
 # Contributing

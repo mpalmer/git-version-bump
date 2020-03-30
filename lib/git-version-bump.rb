@@ -9,7 +9,7 @@ module GitVersionBump
 
 	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
 
-	def self.version(use_local_git=false)
+	def self.version(use_local_git=false, include_lite_tags=false)
 		if use_local_git
 			unless git_available?
 				raise RuntimeError,
@@ -21,7 +21,10 @@ module GitVersionBump
 			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
-		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='#{VERSION_TAG_GLOB}' 2> #{DEVNULL}`.
+		git_cmd = "git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='#{VERSION_TAG_GLOB}'"
+		git_cmd << " --tags" if include_lite_tags
+
+		git_ver = `#{git_cmd} 2> #{DEVNULL}`.
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
@@ -40,8 +43,8 @@ module GitVersionBump
 		$? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
 	end
 
-	def self.major_version(use_local_git=false)
-		ver = version(use_local_git)
+	def self.major_version(use_local_git=false, include_lite_tags=false)
+		ver = version(use_local_git, include_lite_tags)
 		v   = ver.split('.')[0]
 
 		unless v =~ /^[0-9]+$/
@@ -52,8 +55,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.minor_version(use_local_git=false)
-		ver = version(use_local_git)
+	def self.minor_version(use_local_git=false, include_lite_tags=false)
+		ver = version(use_local_git, include_lite_tags)
 		v   = ver.split('.')[1]
 
 		unless v =~ /^[0-9]+$/
@@ -64,8 +67,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.patch_version(use_local_git=false)
-		ver = version(use_local_git)
+	def self.patch_version(use_local_git=false, include_lite_tags=false)
+		ver = version(use_local_git, include_lite_tags)
 		v   = ver.split('.')[2]
 
 		unless v =~ /^[0-9]+$/
@@ -76,8 +79,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.internal_revision(use_local_git=false)
-		version(use_local_git).split('.', 4)[3].to_s
+	def self.internal_revision(use_local_git=false, include_lite_tags=false)
+		version(use_local_git, include_lite_tags).split('.', 4)[3].to_s
 	end
 
 	def self.date(use_local_git=false)
@@ -119,14 +122,16 @@ module GitVersionBump
 		end
 	end
 
-	def self.tag_version(v, release_notes = false)
+	def self.tag_version(v, release_notes = false, include_lite_tags=false)
 		if dirty_tree?
 			puts "You have uncommitted files.  Refusing to tag a dirty tree."
 		else
 			if release_notes
 				# We need to find the tag before this one, so we can list all the commits
 				# between the two.  This is not a trivial operation.
-				prev_tag = `git describe --match '#{VERSION_TAG_GLOB}' --always`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
+				git_cmd = "git describe --match='#{VERSION_TAG_GLOB}' --always"
+				git_cmd << ' --tags' if include_lite_tags
+				prev_tag = `#{git_cmd}`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
 
 				log_file = Tempfile.new('gvb')
 

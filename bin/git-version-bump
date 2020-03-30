@@ -18,11 +18,13 @@ if ARGV[0].nil? or
 
 		-d, --dry-run: Calculate and return the bump value, but don't update git workspace or remote
 		-n, --notes: Prompt for "release notes" to add to the release tag
+		-l, --lite-tags: Include non-annotated git tags
 	EOF
 end
 
 release_notes = ARGV.delete('-n') || ARGV.delete('--notes')
 dry_run = ARGV.delete('-d') || ARGV.delete('--dry-run')
+lite_tags = ARGV.delete('-l') || ARGV.delete('--lite-tags')
 
 if ARGV[0].nil? or ARGV[0].empty?
 	exit 1
@@ -48,6 +50,6 @@ end
 if dry_run
 	puts result
 else
-	GVB.tag_version result, release_notes
+	GVB.tag_version result, release_notes, lite_tags
 	puts "Version is now #{GVB.version(true)}."
 end
