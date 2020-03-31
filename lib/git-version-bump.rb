@@ -5,6 +5,8 @@ require 'pathname'
 module GitVersionBump
 	class VersionUnobtainable < StandardError; end
 
+	VERSION_TAG_GLOB = 'v[0.9]*.[0-9]*.*[0-9]'
+
 	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
 
 	def self.version(use_local_git=false)
@@ -19,7 +21,7 @@ module GitVersionBump
 			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
-		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='v[0-9]*.[0-9]*.*[0-9]' 2> #{DEVNULL}`.
+		git_ver = `git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='#{VERSION_TAG_GLOB}' 2> #{DEVNULL}`.
 		            strip.
 		            gsub(/^v/, '').
 		            gsub('-', '.')
@@ -124,7 +126,7 @@ module GitVersionBump
 			if release_notes
 				# We need to find the tag before this one, so we can list all the commits
 				# between the two.  This is not a trivial operation.
-				prev_tag = `git describe --always`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
+				prev_tag = `git describe --match '#{VERSION_TAG_GLOB}' --always`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
 
 				log_file = Tempfile.new('gvb')
 
