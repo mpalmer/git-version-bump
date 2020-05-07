@@ -97,11 +97,11 @@ module GitVersionBump
 		if $? == 0
 			# Yes, we're in git.
 
-			if dirty_tree?
+			if dirty_tree?(sq_git_dir)
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return `git -C #{sq_git_dir} show --no-show-signature --format=format:%cd --date=short`.lines.first.strip
+				return `git -C #{sq_git_dir} show --no-show-signature --format=format:%cd --date=short`.lines.first&.strip
 			end
 		else
 			if use_local_git
@@ -237,11 +237,9 @@ module GitVersionBump
 		$? == 0
 	end
 
-	def self.dirty_tree?
+	def self.dirty_tree?(sq_git_dir='.')
 		# Are we in a dirty, dirty tree?
-		system("! git diff --no-ext-diff --quiet --exit-code 2> #{DEVNULL} || ! git diff-index --cached --quiet HEAD 2> #{DEVNULL}")
-
-		$? == 0
+		!system("git -C #{sq_git_dir} diff --no-ext-diff --quiet --exit-code 2> #{DEVNULL}") || !("git -C #{sq_git_dir} diff-index --cached --quiet HEAD 2> #{DEVNULL}")
 	end
 
 	def self.caller_file
