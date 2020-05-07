@@ -249,14 +249,9 @@ module GitVersionBump
 		# within this file, we can't just look at Gem.location_of_caller, but
 		# instead we need to parse the caller stack ourselves to find which
 		# gem we're trying to version all over.
-		#
-		# Caller returns paths of the form `/path/to/file:100:in method...` on *nix
-		# and `C:\path\to\file:in method...` on Windows. Splitting on colon isn't
-		# reliable since the Windows path has a colon at the beginning, split on :num:
-		# instead since that will always be there no matter the platform.
 		Pathname(
-		  caller.
-		  map  { |l| l.split(/:\d+:/)[0] }.
+		  caller_locations.
+		  map(&:path).
 		  find { |l| l != __FILE__ }
 		).realpath.to_s rescue nil
 	end
