@@ -249,9 +249,14 @@ module GitVersionBump
 		# within this file, we can't just look at Gem.location_of_caller, but
 		# instead we need to parse the caller stack ourselves to find which
 		# gem we're trying to version all over.
+		#
+		# Caller returns paths of the form `/path/to/file:100:in method...` on *nix
+		# and `C:\path\to\file:in method...` on Windows. Splitting on colon isn't
+		# reliable since the Windows path has a colon at the beginning, split on :num:
+		# instead since that will always be there no matter the platform.
 		Pathname(
 		  caller.
-		  map  { |l| l.split(':')[0] }.
+		  map  { |l| l.split(/:\d+:/)[0] }.
 		  find { |l| l != __FILE__ }
 		).realpath.to_s rescue nil
 	end
@@ -262,8 +267,16 @@ module GitVersionBump
 		# Grovel through all the loaded gems to try and find the gem
 		# that contains the caller's file.
 		Gem.loaded_specs.values.each do |spec|
-			search_dirs = spec.require_paths.map { |d| "#{spec.full_gem_path}/#{d}" } +
-			              [File.join(spec.full_gem_path, spec.bindir)]
+			# On Windows I have encountered gems that already have an absolute
+			# path, verify that the path is relative before appending to it
+			search_dirs = spec.require_paths.map do |path|
+				if Pathname(path).absolute?
+					path
+				else
+					File.join(spec.full_gem_path, path)
+				end
+			end
+			search_dirs << File.join(spec.full_gem_path, spec.bindir)
 			search_dirs.map! do |d|
 				begin
 					Pathname(d).realpath.to_s
