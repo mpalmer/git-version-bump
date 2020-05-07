@@ -33,11 +33,13 @@ module GitVersionBump
 		# git failed us; we're either not in a git repo or else we've never
 		# tagged anything before.
 
-		# Are we in a git repo with no tags?  If so, dump out our
-		# super-special version and be done with it, otherwise try to use the
-		# gem version.
-		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
-		$? == 0 ? "0.0.0.1.ENOTAG" : gem_version(use_local_git)
+		# Are we in a git repo with no tags?  If so, try to use the gemspec
+		# and if that fails then abort
+		begin
+			return gem_version(use_local_git)
+		rescue VersionUnobtainable
+			return "0.0.0.1.ENOTAG"
+		end
 	end
 
 	def self.major_version(use_local_git=false)
@@ -223,10 +225,13 @@ module GitVersionBump
 		# git failed us; either we're not in a git repo or else it's a git
 		# repo that's not got any commits.
 
-		# Are we in a git repo with no tags?  If so, dump out our
-		# super-special version and be done with it.
-		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
-		$? == 0 ? "0.0.0.1.ENOCOMMITS" : gem_version(use_local_git)
+		# Are we in a git repo with no commits?  If so, try to use the gemspec
+		# and if that fails then abort
+		begin
+			return gem_version(use_local_git)
+		rescue VersionUnobtainable
+			return "0.0.0.1.ENOCOMMITS"
+		end
 	end
 
 	private
