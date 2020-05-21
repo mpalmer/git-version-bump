@@ -5,7 +5,7 @@ require 'pathname'
 module GitVersionBump
 	class VersionUnobtainable < StandardError; end
 
-	VERSION_TAG_GLOB = 'v[0.9]*.[0-9]*.*[0-9]'
+	VERSION_TAG_GLOB = 'v[0-9]*.[0-9]*.*[0-9]'
 
 	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
 
