@@ -99,11 +99,11 @@ module GitVersionBump
 		if $? == 0
 			# Yes, we're in git.
 
-			if dirty_tree?
+			if dirty_tree?(sq_git_dir)
 				return Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return `git -C #{sq_git_dir} show --no-show-signature --format=format:%cd --date=short`.lines.first.strip
+				return `git -C #{sq_git_dir} show --no-show-signature --format=format:%cd --date=short`.lines.first&.strip
 			end
 		else
 			if use_local_git
@@ -242,11 +242,9 @@ module GitVersionBump
 		$? == 0
 	end
 
-	def self.dirty_tree?
+	def self.dirty_tree?(sq_git_dir='.')
 		# Are we in a dirty, dirty tree?
-		system("! git diff --no-ext-diff --quiet --exit-code 2> #{DEVNULL} || ! git diff-index --cached --quiet HEAD 2> #{DEVNULL}")
-
-		$? == 0
+		!system("git -C #{sq_git_dir} diff --no-ext-diff --quiet --exit-code 2> #{DEVNULL}") || !("git -C #{sq_git_dir} diff-index --cached --quiet HEAD 2> #{DEVNULL}")
 	end
 
 	def self.caller_file
@@ -255,8 +253,8 @@ module GitVersionBump
 		# instead we need to parse the caller stack ourselves to find which
 		# gem we're trying to version all over.
 		Pathname(
-		  caller.
-		  map  { |l| l.split(':')[0] }.
+		  caller_locations.
+		  map(&:path).
 		  find { |l| l != __FILE__ }
 		).realpath.to_s rescue nil
 	end
@@ -267,8 +265,16 @@ module GitVersionBump
 		# Grovel through all the loaded gems to try and find the gem
 		# that contains the caller's file.
 		Gem.loaded_specs.values.each do |spec|
-			search_dirs = spec.require_paths.map { |d| "#{spec.full_gem_path}/#{d}" } +
-			              [File.join(spec.full_gem_path, spec.bindir)]
+			# On Windows I have encountered gems that already have an absolute
+			# path, verify that the path is relative before appending to it
+			search_dirs = spec.require_paths.map do |path|
+				if Pathname(path).absolute?
+					path
+				else
+					File.join(spec.full_gem_path, path)
+				end
+			end
+			search_dirs << File.join(spec.full_gem_path, spec.bindir)
 			search_dirs.map! do |d|
 				begin
 					Pathname(d).realpath.to_s
