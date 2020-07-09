@@ -249,7 +249,7 @@ module GitVersionBump
 
 	def self.dirty_tree?(sq_git_dir='.')
 		# Are we in a dirty, dirty tree?
-		!system("git -C #{sq_git_dir} diff --no-ext-diff --quiet --exit-code 2> #{DEVNULL}") || !("git -C #{sq_git_dir} diff-index --cached --quiet HEAD 2> #{DEVNULL}")
+		! `git -C #{sq_git_dir} status --porcelain 2> #{DEVNULL}`.empty?
 	end
 
 	def self.caller_file
