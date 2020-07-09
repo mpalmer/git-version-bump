@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
 	s.date    = GVB.date
 
 	s.platform              = Gem::Platform::RUBY
-	s.required_ruby_version = ">= 1.8.7"
+	s.required_ruby_version = ">= 2.1.0"
 
 	s.homepage = "http://theshed.hezmatt.org/git-version-bump"
 	s.summary = "Manage your app version entirely via git tags"
