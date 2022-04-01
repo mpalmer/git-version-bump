@@ -210,7 +210,7 @@ module GitVersionBump
 			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
 		end
 
-		commit_dates = `git -C #{sq_git_dir} log --format=%at`.
+		commit_dates = `git -C #{sq_git_dir} log --no-show-signature --format=%at`.
 		               split("\n").
 		               map { |l| Time.at(Integer(l)).strftime("%Y%m%d") }
 
