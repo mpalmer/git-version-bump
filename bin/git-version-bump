@@ -50,6 +50,8 @@ end
 if dry_run
 	puts result
 else
-	GVB.tag_version result, release_notes, lite_tags
+	unless GVB.tag_version result, release_notes, lite_tags
+		exit 1
+	end
 	puts "Version is now #{GVB.version(true)}."
 end

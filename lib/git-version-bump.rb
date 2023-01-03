@@ -127,48 +127,56 @@ module GitVersionBump
 	def self.tag_version(v, release_notes = false, include_lite_tags=false)
 		if dirty_tree?
 			puts "You have uncommitted files.  Refusing to tag a dirty tree."
-		else
-			if release_notes
-				# We need to find the tag before this one, so we can list all the commits
-				# between the two.  This is not a trivial operation.
-				git_cmd = "git describe --match='#{VERSION_TAG_GLOB}' --always"
-				git_cmd << ' --tags' if include_lite_tags
-				prev_tag = `#{git_cmd}`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
+			return false
+		end
+		if release_notes
+			# We need to find the tag before this one, so we can list all the commits
+			# between the two.  This is not a trivial operation.
+			git_cmd = "git describe --match='#{VERSION_TAG_GLOB}' --always"
+			git_cmd << ' --tags' if include_lite_tags
+			prev_tag = `#{git_cmd}`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
 
-				log_file = Tempfile.new('gvb')
+			log_file = Tempfile.new('gvb')
 
-				log_file.puts <<-EOF.gsub(/^\t\t\t\t\t/, '')
+			log_file.puts <<-EOF.gsub(/^\t\t\t\t\t/, '')
 
 
 
-					# Write your release notes above.  The first line should be the release name.
-					# To help you remember what's in here, the commits since your last release
-					# are listed below. This will become v#{v}
-					#
-				EOF
+				# Write your release notes above.  The first line should be the release name.
+				# To help you remember what's in here, the commits since your last release
+				# are listed below. This will become v#{v}
+				#
+			EOF
 
-				log_file.close
-				system("git log --no-show-signature --format='# %h  %s' #{prev_tag}..HEAD >>#{log_file.path}")
+			log_file.close
+			system("git log --no-show-signature --format='# %h  %s' #{prev_tag}..HEAD >>#{log_file.path}")
 
-				pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
-				system("git config -e -f #{log_file.path}")
-				if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
-					puts "Release notes not edited; aborting"
-					log_file.unlink
-					return
-				end
-
-				puts "Tagging version #{v}..."
-				system("git tag -a -F #{log_file.path} v#{v}")
+			pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
+			system("git config -e -f #{log_file.path}")
+			if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
+				puts "Release notes not edited; aborting"
 				log_file.unlink
-			else
-				# Crikey this is a lot simpler
-				system("git tag -a -m 'Version v#{v}' v#{v}")
+				return
 			end
 
-			system("git push > #{DEVNULL} 2>&1")
-			system("git push --tags > #{DEVNULL} 2>&1")
+			puts "Tagging version #{v}..."
+			system("git tag -a -F #{log_file.path} v#{v}")
+			log_file.unlink
+		else
+			# Crikey this is a lot simpler
+			system("git tag -a -m 'Version v#{v}' v#{v}")
 		end
+
+		# We check if push actions are successful or not, as they are suspectible of network failures.
+		unless system("git push > #{DEVNULL} 2>&1")
+			puts "Failed to push commit to the remote repository"
+			return false
+		end
+		unless system("git push --tags > #{DEVNULL} 2>&1")
+			puts "Failed to push tag to the remote repository"
+			return false
+		end
+		return true
 	end
 
 	# Calculate a version number based on the date of the most recent git commit.
