@@ -1,47 +1,43 @@
 require 'tempfile'
 require 'digest/sha1'
+require 'open3'
 require 'pathname'
 
 module GitVersionBump
 	class VersionUnobtainable < StandardError; end
+	class CommandFailure < StandardError
+		attr_accessor :output, :exitstatus
+
+		def initialize(m, output, exitstatus)
+			super(m)
+			@output, @exitstatus = output, exitstatus
+		end
+	end
 
 	VERSION_TAG_GLOB = 'v[0-9]*.[0-9]*.*[0-9]'
 
 	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
 
 	def self.version(use_local_git=false, include_lite_tags=false)
-		if use_local_git
-			unless git_available?
-				raise RuntimeError,
-				      "GVB.version(use_local_git=true) called, but git isn't installed"
-			end
+		git_cmd = ["git", "-C", git_dir(use_local_git), "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
+		git_cmd << "--tags" if include_lite_tags
 
-			sq_git_dir = shell_quoted_string(Dir.pwd)
-		else
-			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
-		end
-
-		git_cmd = "git -C #{sq_git_dir} describe --dirty='.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}' --match='#{VERSION_TAG_GLOB}'"
-		git_cmd << " --tags" if include_lite_tags
-
-		git_ver = `#{git_cmd} 2> #{DEVNULL}`.
-		            strip.
-		            gsub(/^v/, '').
-		            gsub('-', '.')
-
-		# If git returned success, then it gave us a described version.
-		# Success!
-		return git_ver if $? == 0
-
-		# git failed us; we're either not in a git repo or else we've never
-		# tagged anything before.
-
-		# Are we in a git repo with no tags?  If so, try to use the gemspec
-		# and if that fails then abort
 		begin
-			return gem_version(use_local_git)
-		rescue VersionUnobtainable
-			return "0.0.0.1.ENOTAG"
+			run_command(git_cmd, "getting current version descriptor").
+			            strip.
+			            gsub(/^v/, '').
+			            gsub('-', '.')
+		rescue CommandFailure
+			# git failed us; we're either not in a git repo or else we've never
+			# tagged anything before.
+
+			# Are we in a git repo with no tags?  If so, try to use the gemspec
+			# and if that fails then abort
+			begin
+				gem_version(use_local_git)
+			rescue VersionUnobtainable
+				"0.0.0.1.ENOTAG"
+			end
 		end
 	end
 
@@ -86,41 +82,29 @@ module GitVersionBump
 	end
 
 	def self.date(use_local_git=false)
-		if use_local_git
-			unless git_available?
-				raise RuntimeError,
-				      "GVB.date(use_local_git=true), but git is not installed"
-			end
-
-			sq_git_dir = shell_quoted_string(Dir.pwd)
-		else
-			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
-		end
-
 		# Are we in a git tree?
-		system("git -C #{sq_git_dir} status > #{DEVNULL} 2>&1")
-		if $? == 0
-			# Yes, we're in git.
+		begin
+			try_command(["git", "-C", git_dir(use_local_git), "status"])
 
-			if dirty_tree?(sq_git_dir)
-				return Time.now.strftime("%F")
+			if dirty_tree?(git_dir(use_local_git))
+				Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				return (`git -C #{sq_git_dir} show --no-show-signature --format=format:%cd --date=short`.lines.first || "").strip
+				(run_command(["git", "-C", git_dir(use_local_git), "show", "--no-show-signature", "--format=format:%cd", "--date=short"], "getting date of last commit").lines.first || "").strip
 			end
-		else
+		rescue CommandFailure
+			# Presumably not in a git tree
 			if use_local_git
 				raise RuntimeError,
 				      "GVB.date(use_local_git=true) called from non-git location"
 			end
 
-			# Not in git; time to hit the gemspecs
 			if spec = caller_gemspec
-				return spec.date.strftime("%F")
+				spec.date.strftime("%F")
+			else
+				raise RuntimeError,
+				      "GVB.date called from mysterious, non-gem location."
 			end
-
-			raise RuntimeError,
-			      "GVB.date called from mysterious, non-gem location."
 		end
 	end
 
@@ -130,53 +114,49 @@ module GitVersionBump
 			return false
 		end
 		if release_notes
-			# We need to find the tag before this one, so we can list all the commits
-			# between the two.  This is not a trivial operation.
-			git_cmd = "git describe --match='#{VERSION_TAG_GLOB}' --always"
-			git_cmd << ' --tags' if include_lite_tags
-			prev_tag = `#{git_cmd}`.strip.gsub(/-\d+-g[0-9a-f]+$/, '')
-
 			log_file = Tempfile.new('gvb')
 
-			log_file.puts <<-EOF.gsub(/^\t\t\t\t\t/, '')
+			begin
+				# We need to find the tag before this one, so we can list all the commits
+				# between the two.  This is not a trivial operation.
+				git_cmd = ["git", "describe", "--match=#{VERSION_TAG_GLOB}", "--always"]
+				git_cmd << "--tags" if include_lite_tags
+
+				prev_tag = run_command(git_cmd, "getting previous release tag").strip.gsub(/-\d+-g[0-9a-f]+$/, '')
+
+				log_file.puts <<-EOF.gsub(/^\t\t\t\t\t/, '')
 
 
 
-				# Write your release notes above.  The first line should be the release name.
-				# To help you remember what's in here, the commits since your last release
-				# are listed below. This will become v#{v}
-				#
-			EOF
+					# Write your release notes above.  The first line should be the release name.
+					# To help you remember what's in here, the commits since your last release
+					# are listed below. This will become v#{v}
+					#
+				EOF
+				log_file.puts run_command(["git", "log", "--no-show-signature", "--format=# %h  %s", "#{prev_tag}..HEAD"], "getting commit range of release")
 
-			log_file.close
-			system("git log --no-show-signature --format='# %h  %s' #{prev_tag}..HEAD >>#{log_file.path}")
+				log_file.close
 
-			pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
-			system("git config -e -f #{log_file.path}")
-			if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
-				puts "Release notes not edited; aborting"
+				pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
+				run_command(["git", "config", "-e", "-f", log_file.path], "editing release notes")
+				if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
+					puts "Release notes not edited; not making release"
+					log_file.unlink
+					return
+				end
+
+				puts "Tagging version #{v}..."
+				run_command(["git", "tag", "-a", "-F", log_file.path, "v#{v}"], "tagging release with annotations")
+			ensure
 				log_file.unlink
-				return
 			end
-
-			puts "Tagging version #{v}..."
-			system("git tag -a -F #{log_file.path} v#{v}")
-			log_file.unlink
 		else
 			# Crikey this is a lot simpler
-			system("git tag -a -m 'Version v#{v}' v#{v}")
+			run_command(["git", "tag", "-a", "-m", "Version v#{v}", "v#{v}"], "tagging release")
 		end
 
-		# We check if push actions are successful or not, as they are suspectible of network failures.
-		unless system("git push > #{DEVNULL} 2>&1")
-			puts "Failed to push commit to the remote repository"
-			return false
-		end
-		unless system("git push --tags > #{DEVNULL} 2>&1")
-			puts "Failed to push tag to the remote repository"
-			return false
-		end
-		return true
+		run_command(["git", "push"], "pushing commits to the default remote repository")
+		run_command(["git", "push", "--tags"], "pushing tags to the default remote repository")
 	end
 
 	# Calculate a version number based on the date of the most recent git commit.
@@ -207,18 +187,7 @@ module GitVersionBump
 	# make builds off a branch, basically.
 	#
 	def self.commit_date_version(use_local_git = false)
-		if use_local_git
-			unless git_available?
-				raise RuntimeError,
-				      "GVB.commit_date_version(use_local_git=true) called, but git isn't installed"
-			end
-
-			sq_git_dir = shell_quoted_string(Dir.pwd)
-		else
-			sq_git_dir = shell_quoted_string((File.dirname(caller_file) rescue nil || Dir.pwd))
-		end
-
-		commit_dates = `git -C #{sq_git_dir} log --no-show-signature --format=%at`.
+		commit_dates = run_command(["git", "-C", git_dir(use_local_git), "log", "--no-show-signature", "--format=%at"], "getting dates of all commits").
 		               split("\n").
 		               map { |l| Time.at(Integer(l)).strftime("%Y%m%d") }
 
@@ -250,14 +219,50 @@ module GitVersionBump
 	private
 
 	def self.git_available?
-		system("git --version > #{DEVNULL} 2>&1")
-
-		$? == 0
+		try_command(["git", "--version"])
 	end
 
-	def self.dirty_tree?(sq_git_dir='.')
+	def self.dirty_tree?(dir='.')
 		# Are we in a dirty, dirty tree?
-		! `git -C #{sq_git_dir} status --porcelain 2> #{DEVNULL}`.empty?
+		! run_command(["git", "-C", dir, "status", "--porcelain"], "checking for tree cleanliness").empty?
+	end
+
+	# Execute a command, specified as an array.
+	#
+	# On success, the full output of the command (stdout+stderr, interleaved) is returned.
+	# On error, a `CommandFailure` exception is raised.
+	#
+	def self.run_command(cmd, desc)
+		unless cmd.is_a?(Array)
+			raise ArgumentError, "Must pass command line arguments in an array"
+		end
+
+		unless cmd.all? { |s| s.is_a?(String) }
+			raise ArgumentError, "Command line arguments must be strings"
+		end
+
+		if debug?
+			p :GVB_CMD, desc, cmd
+		end
+
+		out, status = Open3.capture2e(*cmd)
+
+		if status.exitstatus != 0
+			raise CommandFailure.new("Failed while #{desc}", out, status.exitstatus)
+		else
+			out
+		end
+	end
+
+	# Execute a command, and return whether it succeeded or failed.
+	#
+	def self.try_command(cmd)
+		begin
+			run_command(cmd, "try_command")
+			true
+		rescue CommandFailure
+			false
+		end
 	end
 
 	def self.caller_file
@@ -268,6 +273,7 @@ module GitVersionBump
 		Pathname(
 		  caller_locations.
 		  map(&:path).
+		  tap { |c| p :CALLER_LOCATIONS, c if debug? }.
 		  find { |l| l != __FILE__ }
 		).realpath.to_s rescue nil
 	end
@@ -327,17 +333,23 @@ module GitVersionBump
 		end
 	end
 
-	def self.shell_quoted_string(dir_string)
-		if Gem.win_platform?
-			return "\"#{dir_string}\""
+	def self.git_dir(use_local_git = false)
+		if use_local_git
+			unless git_available?
+				raise RuntimeError,
+				      "Cannot use git-version-bump with use_local_git, as git is not installed"
+			end
+
+			Dir.pwd
 		else
-			# Shell Quoted, for your convenience
-			return "'#{dir_string.gsub("'", "'\\''")}'"
-		end
+			File.dirname(caller_file) rescue nil || Dir.pwd
+		end.tap { |d| p :GVB_GIT_DIR, use_local_git, d if debug? }
 	end
+	private_class_method :git_dir
 
-	private_class_method :shell_quoted_string
-
+	def self.debug?
+		ENV.key?("GVB_DEBUG")
+	end
 end
 
 GVB = GitVersionBump unless defined? GVB

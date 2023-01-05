@@ -1,14 +1,12 @@
 #!/usr/bin/env ruby
 
-require 'git-version-bump'
-
 if ARGV[0].nil? or
    ARGV[0].empty? or
    (ARGV.length == 1 && (ARGV[0] == "-d" || ARGV[0] == "--dry-run")) or
    ARGV[0] == '-h' or
    ARGV[0] == '--help'
 	$stderr.puts <<-EOF.gsub(/^\t\t/, '')
-		Usage: git version-bump [-n|--notes] [-d|--dry-run] <major|minor|patch|show>
+		Usage: git version-bump [-n|--notes] [-l|--lite-tags] [-d|--dry-run] <major|minor|patch|show>
 
 		'major': x.y.z -> x+1.0.0
 		'minor': x.y.z -> x.y+1.0
@@ -32,26 +30,40 @@ elsif ARGV[0] == '-h' or ARGV[0] == '--help'
 	exit 0
 end
 
-result = case ARGV[0].downcase
-	when /^maj?o?r?$/
-		"#{GVB.major_version(true) + 1}.0.0"
-	when /^min?o?r?$/
-		"#{GVB.major_version(true)}.#{GVB.minor_version(true)+1}.0"
-	when /^pa?t?c?h?$/
-		"#{GVB.major_version(true)}.#{GVB.minor_version(true)}.#{GVB.patch_version(true)+1}"
-	when /^sh?o?w?$/
-		puts GVB.version(true)
-		exit 0
-	else
-		$stderr.puts "Unknown argument: #{ARGV[0]}.  Try --help."
-		exit 1
-end
+begin
+  require 'git-version-bump'
 
-if dry_run
-	puts result
-else
-	unless GVB.tag_version result, release_notes, lite_tags
-		exit 1
-	end
-	puts "Version is now #{GVB.version(true)}."
+  result = case ARGV[0].downcase
+    when /^maj?o?r?$/
+      "#{GVB.major_version(true) + 1}.0.0"
+    when /^min?o?r?$/
+      "#{GVB.major_version(true)}.#{GVB.minor_version(true)+1}.0"
+    when /^pa?t?c?h?$/
+      "#{GVB.major_version(true)}.#{GVB.minor_version(true)}.#{GVB.patch_version(true)+1}"
+    when /^sh?o?w?$/
+      puts GVB.version(true)
+      exit 0
+    else
+      $stderr.puts "Unknown argument: #{ARGV[0]}.  Try --help."
+      exit 1
+  end
+
+  if dry_run
+    puts result
+  else
+    unless GVB.tag_version result, release_notes, lite_tags
+      exit 1
+    end
+    puts "Version is now #{GVB.version(true)}."
+  end
+rescue GVB::VersionUnobtainable => ex
+  $stderr.puts "Could not obtain version information.  #{ex.message} (git available: #{GVB.git_available?.inspect})"
+  exit 1
+rescue GVB::CommandFailure => ex
+  $stderr.puts "#{ex.message} (exit status: #{ex.exitstatus})"
+  $stderr.puts "command output was:"
+  $stderr.puts "----8<----"
+  $stderr.puts ex.output
+  $stderr.puts "---->8----"
+  exit 1
 end
