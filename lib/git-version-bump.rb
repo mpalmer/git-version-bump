@@ -20,8 +20,8 @@ module GitVersionBump
 	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
 	private_constant :DEVNULL
 
-	def self.version(use_local_git=false, include_lite_tags=false)
-		git_cmd = ["git", "-C", git_dir(use_local_git), "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
+	def self.version(use_local_dir=false, include_lite_tags=false)
+		git_cmd = ["git", "-C", git_dir(use_local_dir).to_s, "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
 		git_cmd << "--tags" if include_lite_tags
 
 		begin
@@ -36,15 +36,15 @@ module GitVersionBump
 			# Are we in a git repo with no tags?  If so, try to use the gemspec
 			# and if that fails then abort
 			begin
-				gem_version(use_local_git)
+				gem_version(use_local_dir)
 			rescue VersionUnobtainable
 				"0.0.0.1.ENOTAG"
 			end
 		end
 	end
 
-	def self.major_version(use_local_git=false, include_lite_tags=false)
-		ver = version(use_local_git, include_lite_tags)
+	def self.major_version(use_local_dir=false, include_lite_tags=false)
+		ver = version(use_local_dir, include_lite_tags)
 		v   = ver.split('.')[0]
 
 		unless v =~ /^[0-9]+$/
@@ -55,8 +55,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.minor_version(use_local_git=false, include_lite_tags=false)
-		ver = version(use_local_git, include_lite_tags)
+	def self.minor_version(use_local_dir=false, include_lite_tags=false)
+		ver = version(use_local_dir, include_lite_tags)
 		v   = ver.split('.')[1]
 
 		unless v =~ /^[0-9]+$/
@@ -67,8 +67,8 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.patch_version(use_local_git=false, include_lite_tags=false)
-		ver = version(use_local_git, include_lite_tags)
+	def self.patch_version(use_local_dir=false, include_lite_tags=false)
+		ver = version(use_local_dir, include_lite_tags)
 		v   = ver.split('.')[2]
 
 		unless v =~ /^[0-9]+$/
@@ -79,26 +79,26 @@ module GitVersionBump
 		return v.to_i
 	end
 
-	def self.internal_revision(use_local_git=false, include_lite_tags=false)
-		version(use_local_git, include_lite_tags).split('.', 4)[3].to_s
+	def self.internal_revision(use_local_dir=false, include_lite_tags=false)
+		version(use_local_dir, include_lite_tags).split('.', 4)[3].to_s
 	end
 
-	def self.date(use_local_git=false)
+	def self.date(use_local_dir=false)
 		# Are we in a git tree?
 		begin
-			try_command(["git", "-C", git_dir(use_local_git), "status"])
+			try_command(["git", "-C", git_dir(use_local_dir), "status"])
 
-			if dirty_tree?(git_dir(use_local_git))
+			if dirty_tree?(git_dir(use_local_dir))
 				Time.now.strftime("%F")
 			else
 				# Clean tree.  Date of last commit is needed.
-				(run_command(["git", "-C", git_dir(use_local_git), "show", "--no-show-signature", "--format=format:%cd", "--date=short"], "getting date of last commit").lines.first || "").strip
+				(run_command(["git", "-C", git_dir(use_local_dir), "show", "--no-show-signature", "--format=format:%cd", "--date=short"], "getting date of last commit").lines.first || "").strip
 			end
 		rescue CommandFailure
 			# Presumably not in a git tree
-			if use_local_git
+			if use_local_dir
 				raise RuntimeError,
-				      "GVB.date(use_local_git=true) called from non-git location"
+				      "GVB.date(use_local_dir=true) called from non-git location"
 			end
 
 			if spec = caller_gemspec
@@ -188,8 +188,8 @@ module GitVersionBump
 	# version.  Since hashes are hex, we're boned.  Sorry about that.  Don't
 	# make builds off a branch, basically.
 	#
-	def self.commit_date_version(use_local_git = false)
-		commit_dates = run_command(["git", "-C", git_dir(use_local_git), "log", "--no-show-signature", "--format=%at"], "getting dates of all commits").
+	def self.commit_date_version(use_local_dir = false)
+		commit_dates = run_command(["git", "-C", git_dir(use_local_dir), "log", "--no-show-signature", "--format=%at"], "getting dates of all commits").
 		               split("\n").
 		               map { |l| Time.at(Integer(l)).strftime("%Y%m%d") }
 
@@ -212,7 +212,7 @@ module GitVersionBump
 		# Are we in a git repo with no commits?  If so, try to use the gemspec
 		# and if that fails then abort
 		begin
-			return gem_version(use_local_git)
+			return gem_version(use_local_dir)
 		rescue VersionUnobtainable
 			return "0.0.0.1.ENOCOMMITS"
 		end
@@ -279,7 +279,7 @@ module GitVersionBump
 		  map(&:path).
 		  tap { |c| p :CALLER_LOCATIONS, c if debug? }.
 		  find { |l| l != __FILE__ }
-		).realpath.to_s rescue nil
+		).realpath rescue nil
 	end
 	private_class_method :caller_file
 
@@ -307,7 +307,7 @@ module GitVersionBump
 				end
 			end.compact!
 
-			if search_dirs.find { |d| cf.index(d) == 0 }
+			if search_dirs.find { |d| cf.to_s.index(d) == 0 }
 				return spec
 			end
 		end
@@ -317,8 +317,8 @@ module GitVersionBump
 	end
 	private_class_method :caller_gemspec
 
-	def self.gem_version(use_local_git = false)
-		if use_local_git
+	def self.gem_version(use_local_dir = false)
+		if use_local_dir
 			raise VersionUnobtainable,
 			      "Unable to determine version from local git repo.  This should never happen."
 		end
@@ -331,26 +331,21 @@ module GitVersionBump
 			# idea what's going on.  Time to bail!
 			if git_available?
 				raise VersionUnobtainable,
-				      "GVB.version(#{use_local_git.inspect}) failed, and I really don't know why."
+				      "GVB.version(#{use_local_dir.inspect}) failed, and I really don't know why."
 			else
 				raise VersionUnobtainable,
-				      "GVB.version(#{use_local_git.inspect}) failed; perhaps you need to install git?"
+				      "GVB.version(#{use_local_dir.inspect}) failed; perhaps you need to install git?"
 			end
 		end
 	end
 	private_class_method :gem_version
 
-	def self.git_dir(use_local_git = false)
-		if use_local_git
-			unless git_available?
-				raise RuntimeError,
-				      "Cannot use git-version-bump with use_local_git, as git is not installed"
-			end
-
+	def self.git_dir(use_local_dir = false)
+		if use_local_dir
 			Dir.pwd
 		else
-			File.dirname(caller_file) rescue nil || Dir.pwd
-		end.tap { |d| p :GVB_GIT_DIR, use_local_git, d if debug? }
+			caller_file&.dirname || Dir.pwd
+		end.tap { |d| p :GVB_GIT_DIR, use_local_dir, d if debug? }
 	end
 	private_class_method :git_dir
 
