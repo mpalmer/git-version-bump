@@ -15,8 +15,10 @@ module GitVersionBump
 	end
 
 	VERSION_TAG_GLOB = 'v[0-9]*.[0-9]*.*[0-9]'
+	private_constant :VERSION_TAG_GLOB
 
 	DEVNULL = Gem.win_platform? ? "NUL" : "/dev/null"
+	private_constant :DEVNULL
 
 	def self.version(use_local_git=false, include_lite_tags=false)
 		git_cmd = ["git", "-C", git_dir(use_local_git), "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
@@ -216,16 +218,16 @@ module GitVersionBump
 		end
 	end
 
-	private
-
 	def self.git_available?
 		try_command(["git", "--version"])
 	end
+	private_class_method :git_available?
 
 	def self.dirty_tree?(dir='.')
 		# Are we in a dirty, dirty tree?
 		! run_command(["git", "-C", dir, "status", "--porcelain"], "checking for tree cleanliness").empty?
 	end
+	private_class_method :dirty_tree?
 
 	# Execute a command, specified as an array.
 	#
@@ -253,6 +255,7 @@ module GitVersionBump
 			out
 		end
 	end
+	private_class_method :run_command
 
 	# Execute a command, and return whether it succeeded or failed.
 	#
@@ -264,6 +267,7 @@ module GitVersionBump
 			false
 		end
 	end
+	private_class_method :try_command
 
 	def self.caller_file
 		# Who called us?  Because this method gets called from other methods
@@ -277,6 +281,7 @@ module GitVersionBump
 		  find { |l| l != __FILE__ }
 		).realpath.to_s rescue nil
 	end
+	private_class_method :caller_file
 
 	def self.caller_gemspec
 		cf = caller_file or return nil
@@ -310,6 +315,7 @@ module GitVersionBump
 		raise VersionUnobtainable,
 		      "Unable to find gemspec for caller file #{cf}"
 	end
+	private_class_method :caller_gemspec
 
 	def self.gem_version(use_local_git = false)
 		if use_local_git
@@ -332,6 +338,7 @@ module GitVersionBump
 			end
 		end
 	end
+	private_class_method :gem_version
 
 	def self.git_dir(use_local_git = false)
 		if use_local_git
@@ -350,6 +357,7 @@ module GitVersionBump
 	def self.debug?
 		ENV.key?("GVB_DEBUG")
 	end
+	private_class_method :debug?
 end
 
 GVB = GitVersionBump unless defined? GVB
