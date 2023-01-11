@@ -21,25 +21,10 @@ module GitVersionBump
 	private_constant :DEVNULL
 
 	def self.version(use_local_dir=false, include_lite_tags=false)
-		git_cmd = ["git", "-C", git_dir(use_local_dir).to_s, "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
-		git_cmd << "--tags" if include_lite_tags
-
-		begin
-			run_command(git_cmd, "getting current version descriptor").
-			            strip.
-			            gsub(/^v/, '').
-			            gsub('-', '.')
-		rescue CommandFailure
-			# git failed us; we're either not in a git repo or else we've never
-			# tagged anything before.
-
-			# Are we in a git repo with no tags?  If so, try to use the gemspec
-			# and if that fails then abort
-			begin
-				gem_version(use_local_dir)
-			rescue VersionUnobtainable
-				"0.0.0.1.ENOTAG"
-			end
+		if use_local_dir
+			repo_version(true, include_lite_tags)
+		else
+			gem_version || repo_version(false, include_lite_tags)
 		end
 	end
 
@@ -83,30 +68,11 @@ module GitVersionBump
 		version(use_local_dir, include_lite_tags).split('.', 4)[3].to_s
 	end
 
-	def self.date(use_local_dir=false)
-		# Are we in a git tree?
-		begin
-			try_command(["git", "-C", git_dir(use_local_dir), "status"])
-
-			if dirty_tree?(git_dir(use_local_dir))
-				Time.now.strftime("%F")
-			else
-				# Clean tree.  Date of last commit is needed.
-				(run_command(["git", "-C", git_dir(use_local_dir), "show", "--no-show-signature", "--format=format:%cd", "--date=short"], "getting date of last commit").lines.first || "").strip
-			end
-		rescue CommandFailure
-			# Presumably not in a git tree
-			if use_local_dir
-				raise RuntimeError,
-				      "GVB.date(use_local_dir=true) called from non-git location"
-			end
-
-			if spec = caller_gemspec
-				spec.date.strftime("%F")
-			else
-				raise RuntimeError,
-				      "GVB.date called from mysterious, non-gem location."
-			end
+	def self.date(use_local_dir=false, include_lite_tags = false)
+		if use_local_dir
+			repo_date(true, include_lite_tags)
+		else
+			gem_date || repo_date(false, include_lite_tags)
 		end
 	end
 
@@ -189,32 +155,33 @@ module GitVersionBump
 	# make builds off a branch, basically.
 	#
 	def self.commit_date_version(use_local_dir = false)
-		commit_dates = run_command(["git", "-C", git_dir(use_local_dir), "log", "--no-show-signature", "--format=%at"], "getting dates of all commits").
+		if use_local_dir
+			commit_date_version_string(true)
+		else
+			gem_version || commit_date_version_string(false)
+		end
+	end
+
+	def self.commit_date_version_string(use_local_dir = false)
+		commit_dates = run_command(["git", "-C", git_dir(use_local_dir).to_s, "log", "--no-show-signature", "--format=%at"], "getting dates of all commits").
 		               split("\n").
 		               map { |l| Time.at(Integer(l)).strftime("%Y%m%d") }
 
-		if $? == 0
-			# We got a log; calculate our version number and we're done.
-			version_date = commit_dates.first
-			commit_count = commit_dates.select { |d| d == version_date }.length - 1
-			dirty_suffix = if dirty_tree?
-				".dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}"
-			else
-				""
-			end
-
-			return "0.#{version_date}.#{commit_count}#{dirty_suffix}"
+		version_date = commit_dates.first
+		commit_count = commit_dates.select { |d| d == version_date }.length - 1
+		dirty_suffix = if dirty_tree?
+			".dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}"
+		else
+			""
 		end
 
-		# git failed us; either we're not in a git repo or else it's a git
-		# repo that's not got any commits.
-
-		# Are we in a git repo with no commits?  If so, try to use the gemspec
-		# and if that fails then abort
-		begin
-			return gem_version(use_local_dir)
-		rescue VersionUnobtainable
+		return "0.#{version_date}.#{commit_count}#{dirty_suffix}"
+	rescue CommandFailure => ex
+		p :GVB_CDVS_CMD_FAIL, ex.output if debug?
+		if ex.output =~ /fatal: your current branch .* does not have any commits yet/
 			return "0.0.0.1.ENOCOMMITS"
+		else
+			raise VersionUnobtainable, "Could not get commit date-based version from git repository at #{git_dir(use_local_dir)}"
 		end
 	end
 
@@ -225,7 +192,7 @@ module GitVersionBump
 
 	def self.dirty_tree?(dir='.')
 		# Are we in a dirty, dirty tree?
-		! run_command(["git", "-C", dir, "status", "--porcelain"], "checking for tree cleanliness").empty?
+		! run_command(["git", "-C", dir.to_s, "status", "--porcelain"], "checking for tree cleanliness").empty?
 	end
 	private_class_method :dirty_tree?
 
@@ -247,7 +214,7 @@ module GitVersionBump
 			p :GVB_CMD, desc, cmd
 		end
 
-		out, status = Open3.capture2e(*cmd)
+		out, status = Open3.capture2e({"LC_MESSAGES" => "C"}, *cmd)
 
 		if status.exitstatus != 0
 			raise CommandFailure.new("Failed while #{desc}", out, status.exitstatus)
@@ -312,33 +279,56 @@ module GitVersionBump
 			end
 		end
 
-		raise VersionUnobtainable,
-		      "Unable to find gemspec for caller file #{cf}"
+		if debug?
+			p :GVB_NO_GEMSPEC, cf
+		end
+
+		nil
 	end
 	private_class_method :caller_gemspec
 
-	def self.gem_version(use_local_dir = false)
-		if use_local_dir
-			raise VersionUnobtainable,
-			      "Unable to determine version from local git repo.  This should never happen."
-		end
+	def self.gem_version
+		caller_gemspec&.version&.to_s
+	end
+	private_class_method :gem_version
 
-		if spec = caller_gemspec
-			return spec.version.to_s
-		else
-			# If we got here, something went *badly* wrong -- presumably, we
-			# weren't called from within a loaded gem, and so we've got *no*
-			# idea what's going on.  Time to bail!
-			if git_available?
-				raise VersionUnobtainable,
-				      "GVB.version(#{use_local_dir.inspect}) failed, and I really don't know why."
+	def self.gem_date
+		caller_gemspec&.date&.strftime("%F")
+	end
+	private_class_method :gem_version
+
+	def self.repo_version(use_local_dir, include_lite_tags)
+		git_cmd = ["git", "-C", git_dir(use_local_dir).to_s, "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
+		git_cmd << "--tags" if include_lite_tags
+
+		begin
+			run_command(git_cmd, "getting current version descriptor").
+			            strip.
+			            gsub(/^v/, '').
+			            gsub('-', '.')
+		rescue CommandFailure => ex
+			p :GVB_REPO_VERSION_FAILURE, ex.output if debug?
+			if ex.output =~ /fatal: No names found, cannot describe anything/
+				# aka "no tags, bro"
+				"0.0.0.1.ENOTAG"
 			else
-				raise VersionUnobtainable,
-				      "GVB.version(#{use_local_dir.inspect}) failed; perhaps you need to install git?"
+				raise VersionUnobtainable, "Could not get version from gemspec or git repository at #{git_dir(use_local_dir)}"
 			end
 		end
 	end
-	private_class_method :gem_version
+	private_class_method :repo_version
+
+	def self.repo_date(use_local_dir, include_lite_tags)
+		if dirty_tree?(git_dir(use_local_dir))
+			Time.now.strftime("%F")
+		else
+			# Clean tree.  Date of last commit is needed.
+			(run_command(["git", "-C", git_dir(use_local_dir).to_s, "show", "--no-show-signature", "--format=format:%cd", "--date=short"], "getting date of last commit").lines.first || "").strip
+		end
+	rescue CommandFailure
+		raise VersionUnobtainable, "Could not get commit date from git repository at #{git_dir(use_local_dir)}"
+	end
+	private_class_method :repo_date
 
 	def self.git_dir(use_local_dir = false)
 		if use_local_dir
