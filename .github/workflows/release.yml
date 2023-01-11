@@ -1,0 +1,34 @@
+name: "Release to RubyGems"
+on:
+  push:
+    branch: [main]
+  release:
+    types: [created]
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    name: "Upload gem"
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '2.7'
+          bundler-cache: true
+
+      - name: Workaround for https://github.com/actions/checkout/issues/290
+        run: |
+          git fetch --force --tags
+
+      - name: Do The Needful
+        env:
+          GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
+        working-directory: ruby
+        run: |
+          bundle exec rake release
