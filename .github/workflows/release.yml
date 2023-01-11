@@ -29,6 +29,5 @@ jobs:
       - name: Do The Needful
         env:
           GEM_HOST_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}
-        working-directory: ruby
         run: |
           bundle exec rake release
