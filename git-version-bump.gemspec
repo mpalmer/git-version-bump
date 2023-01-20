@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
 	s.platform              = Gem::Platform::RUBY
 	s.required_ruby_version = ">= 2.1.0"
 
-	s.homepage = "http://theshed.hezmatt.org/git-version-bump"
+	s.homepage = "https://github.com/mpalmer/git-version-bump"
 	s.summary = "Manage your app version entirely via git tags"
 	s.authors = ["Matt Palmer"]
 
