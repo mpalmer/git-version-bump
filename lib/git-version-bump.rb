@@ -25,7 +25,7 @@ module GitVersionBump
 			repo_version(true, include_lite_tags)
 		else
 			gem_version || repo_version(false, include_lite_tags)
-		end
+		end.tap { |v| p :GVB_VERSION, v if debug? }
 	end
 
 	def self.major_version(use_local_dir=false, include_lite_tags=false)
@@ -236,6 +236,11 @@ module GitVersionBump
 	end
 	private_class_method :try_command
 
+	def self.run_git(git_args, desc, use_local_dir)
+		run_command(["git", "-C", git_dir(use_local_dir).to_s] + git_args, desc)
+	end
+	private_class_method :run_git
+
 	def self.caller_file
 		# Who called us?  Because this method gets called from other methods
 		# within this file, we can't just look at Gem.location_of_caller, but
@@ -298,6 +303,16 @@ module GitVersionBump
 	private_class_method :gem_version
 
 	def self.repo_version(use_local_dir, include_lite_tags)
+		begin
+			run_git(["config", "versionBump.versionOverride"], "getting versionOverride", use_local_dir).chomp
+		rescue CommandFailure => ex
+			p :NO_OVERRIDE_VERSION, [ex.class, ex.message] if debug?
+			repo_version_from_tag(use_local_dir, include_lite_tags)
+		end
+	end
+	private_class_method :repo_version
+
+	def self.repo_version_from_tag(use_local_dir, include_lite_tags)
 		git_cmd = ["git", "-C", git_dir(use_local_dir).to_s, "describe", "--dirty=.1.dirty.#{Time.now.strftime("%Y%m%d.%H%M%S")}", "--match=#{VERSION_TAG_GLOB}"]
 		git_cmd << "--tags" if include_lite_tags
 
@@ -316,9 +331,19 @@ module GitVersionBump
 			end
 		end
 	end
-	private_class_method :repo_version
+	private_class_method :repo_version_from_tag
 
 	def self.repo_date(use_local_dir, include_lite_tags)
+		begin
+			run_git(["config", "versionBump.dateOverride"], "getting dateOverride", use_local_dir).chomp
+		rescue CommandFailure => ex
+			p :NO_OVERRIDE_DATE, [ex.class, ex.message] if debug?
+			repo_date_from_commit(use_local_dir, include_lite_tags)
+		end
+	end
+	private_class_method :repo_date
+
+	def self.repo_date_from_commit(use_local_dir, include_lite_tags)
 		if dirty_tree?(git_dir(use_local_dir))
 			Time.now.strftime("%F")
 		else
@@ -328,7 +353,7 @@ module GitVersionBump
 	rescue CommandFailure
 		raise VersionUnobtainable, "Could not get commit date from git repository at #{git_dir(use_local_dir)}"
 	end
-	private_class_method :repo_date
+	private_class_method :repo_date_from_commit
 
 	def self.git_dir(use_local_dir = false)
 		if use_local_dir

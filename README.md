@@ -141,6 +141,19 @@ commits to be detected then use the following configuration:
     end
 
 
+## Overriding the version
+
+In very rare circumstances, while running in a git repo, you may wish to explicitly set the version or date returned by `GVB.version` or `GVB.date`, respectively.
+This can be done by setting the repo's `versionBump.versionOverride` or `versionBump.dateOverride` config values, like so:
+
+```bash
+git config versionBump.versionOverride 1.2.3
+git config versionBump.dateOverride 1970-01-01
+```
+
+Note that whatever you set those values to is used without validity checking; if you set it to something weird, you'll get weird results.
+
+
 # Contributing
 
 Send your pull requests to the [Github
