@@ -106,7 +106,7 @@ module GitVersionBump
 				log_file.close
 
 				pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
-				run_command(["git", "config", "-e", "-f", log_file.path], "editing release notes")
+				run_command_retain_tty(["git", "config", "-e", "-f", log_file.path], "editing release notes")
 				if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
 					puts "Release notes not edited; not making release"
 					log_file.unlink
@@ -223,6 +223,32 @@ module GitVersionBump
 		end
 	end
 	private_class_method :run_command
+
+        # Execute a command, specified as an array but retain ability to run the editor for notes.
+        #
+        # On success, control is returned.
+        # On error, a `CommandFailure` exception is raised.
+        #
+        def self.run_command_retain_tty(cmd, desc)
+                unless cmd.is_a?(Array)
+                        raise ArgumentError, "Must pass command line arguments in an array"
+                end
+
+                unless cmd.all? { |s| s.is_a?(String) }
+                        raise ArgumentError, "Command line arguments must be strings"
+                end
+
+                if debug?
+                        p :GVB_CMD, desc, cmd
+                end
+
+                pid = spawn(*cmd)
+                status = Process.wait pid
+
+                if status.exitstatus != 0
+                        raise CommandFailure.new("Failed while #{desc}", out, status.exitstatus)
+                end
+        end
 
 	# Execute a command, and return whether it succeeded or failed.
 	#
