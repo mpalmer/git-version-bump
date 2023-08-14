@@ -246,7 +246,7 @@ module GitVersionBump
                 status = Process.wait pid
 
                 if status.exitstatus != 0
-                        raise CommandFailure.new("Failed while #{desc}", out, status.exitstatus)
+                        raise CommandFailure.new("Failed while #{desc}", "(output not captured)", status.exitstatus)
                 end
         end
 
