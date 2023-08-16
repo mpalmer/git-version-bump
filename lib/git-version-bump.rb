@@ -106,7 +106,7 @@ module GitVersionBump
 				log_file.close
 
 				pre_hash = Digest::SHA1.hexdigest(File.read(log_file.path))
-				run_command(["git", "config", "-e", "-f", log_file.path], "editing release notes")
+				run_command(["git", "config", "-e", "-f", log_file.path], "editing release notes", false)
 				if Digest::SHA1.hexdigest(File.read(log_file.path)) == pre_hash
 					puts "Release notes not edited; not making release"
 					log_file.unlink
@@ -198,10 +198,10 @@ module GitVersionBump
 
 	# Execute a command, specified as an array.
 	#
-	# On success, the full output of the command (stdout+stderr, interleaved) is returned.
+        # On success, the full output of the command (stdout+stderr, interleaved) is returned unless capture_output is not true.
 	# On error, a `CommandFailure` exception is raised.
 	#
-	def self.run_command(cmd, desc)
+	def self.run_command(cmd, desc, capture_output = true)
 		unless cmd.is_a?(Array)
 			raise ArgumentError, "Must pass command line arguments in an array"
 		end
@@ -214,7 +214,13 @@ module GitVersionBump
 			p :GVB_CMD, desc, cmd
 		end
 
-		out, status = Open3.capture2e({"LC_MESSAGES" => "C"}, *cmd)
+		if capture_output == true
+			out, status = Open3.capture2e({"LC_MESSAGES" => "C"}, *cmd)
+		else
+			out = '(output not captured)'
+			pid = spawn(*cmd)
+			(retpid, status) = Process.wait2 pid
+		end
 
 		if status.exitstatus != 0
 			raise CommandFailure.new("Failed while #{desc}", out, status.exitstatus)
