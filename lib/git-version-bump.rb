@@ -299,12 +299,17 @@ module GitVersionBump
 	private_class_method :caller_gemspec
 
 	def self.gem_version
-		caller_gemspec&.version&.to_s
+		return "" if caller_gemspec.nil?
+
+		caller_gemspec.version.to_s
 	end
 	private_class_method :gem_version
 
 	def self.gem_date
-		caller_gemspec&.date&.strftime("%F")
+		return nil if caller_gemspec.nil?
+		return nil if caller_gemspec.date.nil?
+
+		caller_gemspec.date.strftime("%F")
 	end
 	private_class_method :gem_version
 
@@ -365,7 +370,7 @@ module GitVersionBump
 		if use_local_dir
 			Dir.pwd
 		else
-			caller_file&.dirname || Dir.pwd
+			(caller_file && caller_file.dirname) || Dir.pwd
 		end.tap { |d| p :GVB_GIT_DIR, use_local_dir, d if debug? }
 	end
 	private_class_method :git_dir
