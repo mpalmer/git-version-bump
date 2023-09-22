@@ -299,7 +299,7 @@ module GitVersionBump
 	private_class_method :caller_gemspec
 
 	def self.gem_version
-		return "" if caller_gemspec.nil?
+		return nil if caller_gemspec.nil?
 
 		caller_gemspec.version.to_s
 	end
